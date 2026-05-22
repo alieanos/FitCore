@@ -141,6 +141,7 @@ function PaywallModal({onSelect,onClose,currentTier}){
 // ─── ONBOARDING ────────────────────────────────────────────
 function Onboarding({onDone}){
   const[step,setStep]=useState(0);
+  const[showBFGuide,setShowBFGuide]=useState(false);
   const[f,setF]=useState({gender:"male",age:"",weight:"",height:"",activity:"moderate",goal:"recomp",goalWeight:"",goalBf:"12"});
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   function finish(){
@@ -180,7 +181,14 @@ function Onboarding({onDone}){
       </div>))}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:4}}>
         <Inp label="Goal Weight (lbs)" type="number" placeholder="170" value={f.goalWeight} onChange={e=>u("goalWeight",e.target.value)}/>
-        <Inp label="Target BF %" type="number" placeholder="12" value={f.goalBf} onChange={e=>u("goalBf",e.target.value)}/>
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+            <div style={{fontFamily:FB,fontSize:10,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".12em"}}>Target BF %</div>
+            <button className="tap" onClick={()=>setShowBFGuide(true)} style={{width:18,height:18,borderRadius:"50%",background:C.cyan+"22",border:`1px solid ${C.cyan}`,color:C.cyan,fontFamily:FB,fontSize:10,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>?</button>
+          </div>
+          <input type="number" placeholder="12" value={f.goalBf} onChange={e=>u("goalBf",e.target.value)} style={{width:"100%",background:C.card2,border:`1.5px solid ${C.border}`,borderRadius:10,padding:"11px 12px",color:C.text,fontSize:16,fontFamily:FB,fontWeight:700,outline:"none"}}/>
+          <div style={{fontFamily:FB,fontSize:10,color:C.sub,marginTop:4,fontStyle:"italic"}}>Not sure? Tap the ? for a visual guide</div>
+        </div>
       </div>
     </div>)},
   ];
@@ -203,10 +211,116 @@ function Onboarding({onDone}){
         ?<Btn ch="NEXT →" onClick={()=>setStep(step+1)} color={C.lime} sx={{flex:1,marginTop:0}}/>
         :<Btn ch="BUILD MY PLAN 🚀" onClick={finish} color={C.lime} sx={{flex:1,marginTop:0}}/>}
     </div>
+    {showBFGuide&&<BFGuideModal gender={f.gender} onClose={()=>setShowBFGuide(false)} onPick={v=>{u("goalBf",String(v));setShowBFGuide(false);}}/>}
+  </div>);
+}
+
+// ─── BF GUIDE MODAL ─────────────────────────────────────────
+function BFGuideModal({gender,onClose,onPick}){
+  const ranges=gender==="female"?[
+    {bf:15,label:"Athletic",emoji:"🏃‍♀️",desc:"Visible ab lines, very lean. Competition-ready physique.",hint:"Difficult to maintain, requires strict training & diet",color:C.cyan,recommend:"Athletes only"},
+    {bf:20,label:"Fit",emoji:"💪",desc:"Toned, athletic look. Some ab definition visible.",hint:"Most realistic goal for serious gym-goers",color:C.lime,recommend:"⭐ Recommended for active women"},
+    {bf:25,label:"Healthy",emoji:"😊",desc:"Healthy curves, soft definition, feminine shape.",hint:"Sustainable, healthy long-term",color:C.green,recommend:"⭐ Great everyday goal"},
+    {bf:30,label:"Average",emoji:"🙂",desc:"Softer overall, normal female body composition.",hint:"Where most adult women fall naturally",color:C.amber,recommend:"Standard average"},
+    {bf:35,label:"Above Average",emoji:"😐",desc:"Noticeable fat around hips, thighs, midsection.",hint:"Common — improvement helps health markers",color:C.orange,recommend:""},
+    {bf:40,label:"High",emoji:"😔",desc:"Significant excess fat, health risks increase.",hint:"Focus on health first, not aesthetics",color:C.coral,recommend:""},
+  ]:[
+    {bf:8,label:"Shredded",emoji:"🏆",desc:"Veins everywhere, extreme definition. Bodybuilder stage shape.",hint:"Hard to maintain — only briefly for competitions",color:C.cyan,recommend:"Bodybuilders only"},
+    {bf:12,label:"Athletic",emoji:"💪",desc:"Visible six-pack, clear muscle definition all over.",hint:"Most realistic goal for serious gym-goers",color:C.lime,recommend:"⭐ Recommended for fitness enthusiasts"},
+    {bf:15,label:"Fit",emoji:"🏃‍♂️",desc:"Flat stomach, some ab outline, athletic look.",hint:"Sustainable, healthy and good-looking",color:C.green,recommend:"⭐ Great everyday goal"},
+    {bf:20,label:"Average",emoji:"🙂",desc:"Soft midsection, no visible ab definition.",hint:"Where most adult men fall naturally",color:C.amber,recommend:"Standard average"},
+    {bf:25,label:"Above Average",emoji:"😐",desc:"Noticeable belly fat, no muscle definition.",hint:"Common — improvement helps health markers",color:C.orange,recommend:""},
+    {bf:30,label:"High",emoji:"😔",desc:"Significant fat around midsection, health risks rise.",hint:"Focus on health first, not aesthetics",color:C.coral,recommend:""},
+  ];
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(8px)"}}>
+    <div className="au" style={{background:C.card,borderRadius:"24px 24px 0 0",padding:20,width:"100%",maxWidth:640,maxHeight:"90vh",overflowY:"auto"}}>
+      <div style={{textAlign:"center",marginBottom:14}}>
+        <div style={{fontFamily:FH,fontSize:24,color:C.cyan,letterSpacing:".06em"}}>📏 BODY FAT GUIDE</div>
+        <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginTop:4}}>Tap a category to use that target</div>
+      </div>
+      <div style={{background:C.cyan+"11",border:`1px solid ${C.cyan}33`,borderRadius:10,padding:"10px 13px",marginBottom:14}}>
+        <div style={{fontFamily:FB,fontSize:11,color:C.cyan,fontWeight:700,marginBottom:4}}>💡 New to this?</div>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,lineHeight:1.6}}>Pick a category that matches what you want to look like. Lower % = leaner. Most people aim for "Fit" or "Athletic" as a long-term goal.</div>
+      </div>
+      {ranges.map((r,i)=>(<div key={i} className="tap" onClick={()=>onPick(r.bf)} style={{background:C.card2,border:`1.5px solid ${r.color}33`,borderLeft:`4px solid ${r.color}`,borderRadius:12,padding:"12px 14px",marginBottom:8,cursor:"pointer"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+          <span style={{fontSize:26}}>{r.emoji}</span>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+              <div style={{fontFamily:FH,fontSize:18,color:r.color,letterSpacing:".05em"}}>{r.label}</div>
+              <div style={{fontFamily:FH,fontSize:14,color:C.sub}}>~{r.bf}%</div>
+            </div>
+            {r.recommend&&<div style={{fontFamily:FB,fontSize:10,color:r.color,fontWeight:700,marginTop:1}}>{r.recommend}</div>}
+          </div>
+        </div>
+        <div style={{fontFamily:FB,fontSize:12,color:C.text,lineHeight:1.6,marginBottom:4}}>{r.desc}</div>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,fontStyle:"italic"}}>{r.hint}</div>
+      </div>))}
+      <button className="tap" onClick={onClose} style={{width:"100%",padding:"12px",background:"none",border:`1px solid ${C.border}`,borderRadius:11,color:C.sub,fontFamily:FH,fontSize:13,cursor:"pointer",marginTop:8,letterSpacing:".08em"}}>✕ CLOSE</button>
+    </div>
   </div>);
 }
 
 // ─── FAST FOOD DATA ────────────────────────────────────────
+const ADDONS={
+  mayo:{name:"Mayo (1 packet)",cal:94,p:0,c:0,f:10},
+  ranch:{name:"Ranch Dressing",cal:110,p:1,c:2,f:11},
+  honey_mustard:{name:"Honey Mustard",cal:60,p:0,c:13,f:0},
+  bbq:{name:"BBQ Sauce",cal:45,p:0,c:11,f:0},
+  buffalo:{name:"Buffalo Sauce",cal:15,p:0,c:1,f:1},
+  ketchup:{name:"Ketchup",cal:15,p:0,c:4,f:0},
+  mustard:{name:"Yellow Mustard",cal:5,p:0,c:1,f:0},
+  bacon:{name:"Bacon (2 strips)",cal:80,p:6,c:0,f:6},
+  cheese:{name:"American Cheese",cal:60,p:3,c:1,f:5},
+  avocado:{name:"Avocado / Guac",cal:80,p:1,c:4,f:7},
+  italian:{name:"Italian Dressing",cal:80,p:0,c:2,f:8},
+  vinaigrette:{name:"Light Vinaigrette",cal:50,p:0,c:3,f:4},
+  caesar:{name:"Caesar Dressing",cal:90,p:1,c:1,f:9},
+  blue_cheese:{name:"Blue Cheese Dressing",cal:120,p:1,c:1,f:13},
+  sour_cream:{name:"Sour Cream",cal:60,p:1,c:2,f:5},
+  extra_chicken:{name:"Extra Chicken (4oz)",cal:120,p:24,c:0,f:3},
+  guac:{name:"Guacamole",cal:230,p:2,c:8,f:22},
+  queso:{name:"Queso Blanco",cal:120,p:5,c:5,f:9},
+  fajita_veg:{name:"Fajita Veggies",cal:20,p:1,c:4,f:0},
+  pico:{name:"Pico de Gallo",cal:25,p:1,c:4,f:0},
+  black_beans:{name:"Black Beans",cal:130,p:8,c:22,f:1},
+};
+
+// "How to order" details and add-on options per item
+const ITEM_DETAILS={
+  // McDonald's
+  "Grilled Chicken (no mayo)":{order:'Say: "Artisan Grilled Chicken Sandwich, no mayo"',includes:"Grilled chicken breast, sesame bun, lettuce, tomato",macroNote:"Macros shown are with no mayo. Adding mayo back: +94 cal, +10g fat",addons:["mayo","cheese","bacon","honey_mustard","bbq"]},
+  "McDouble":{order:'Say: "McDouble" (standard)',includes:"2 beef patties, bun, ketchup, mustard, pickles, onion, 1 slice cheese",macroNote:"Macros are for standard McDouble with all condiments",addons:["mayo","bacon","cheese","ranch","bbq"]},
+  "Big Mac no sauce":{order:'Say: "Big Mac, no Mac sauce"',includes:"2 beef patties, 3-piece bun, lettuce, pickles, onion, cheese — without Mac sauce",macroNote:"Skipping Mac sauce saves ~80 cal vs regular Big Mac",addons:["mayo","bacon","cheese","ranch","bbq"]},
+  "Filet-O-Fish no tartar":{order:'Say: "Filet-O-Fish, no tartar sauce"',includes:"Fish fillet, steamed bun, 1/2 slice cheese — without tartar sauce",macroNote:"Skipping tartar saves ~80 cal",addons:["mayo","cheese","ketchup"]},
+  "Side Salad + Grilled Chicken":{order:'Say: "Side salad with grilled chicken added, dressing on the side"',includes:"Mixed greens, tomatoes, cucumber + grilled chicken breast",macroNote:"Macros don't include dressing — choose wisely below",addons:["ranch","italian","vinaigrette","caesar","honey_mustard"]},
+  "Side Salad + Chicken":{order:'Say: "Side salad with grilled chicken added, dressing on the side"',includes:"Mixed greens, tomatoes, cucumber + grilled chicken breast",macroNote:"Macros don't include dressing",addons:["ranch","italian","vinaigrette","caesar"]},
+  "Southwest Salad":{order:'Say: "Southwest Grilled Chicken Salad, dressing on the side"',includes:"Lettuce mix, grilled chicken, corn, beans, tomatoes, lime tortilla strips",macroNote:"Macros don't include dressing",addons:["ranch","vinaigrette","cheese","avocado"]},
+  "Artisan Grilled Chicken":{order:'Say: "Artisan Grilled Chicken Sandwich" (standard)',includes:"Grilled chicken, artisan roll, lettuce, tomato, vinaigrette",macroNote:"Standard order — vinaigrette already included",addons:["mayo","cheese","bacon","avocado"]},
+  "Grilled Chicken Sandwich":{order:'Say: "Artisan Grilled Chicken Sandwich, no mayo"',includes:"Grilled chicken, artisan roll, lettuce, tomato, light vinaigrette",macroNote:"Macros assume no mayo",addons:["mayo","cheese","bacon","avocado","ranch"]},
+  "McDouble no mayo":{order:'Say: "McDouble, no mayo" (standard has no mayo)',includes:"2 beef patties, bun, ketchup, mustard, pickles, onion, cheese",macroNote:"Standard McDouble — no mayo to begin with",addons:["bacon","cheese","ranch","bbq"]},
+  "Salad + 2x Chicken":{order:'Say: "Side salad, add 2 grilled chicken, dressing on the side"',includes:"Mixed greens + 2 grilled chicken breasts",macroNote:"Dressing NOT included — choose below",addons:["ranch","italian","vinaigrette","caesar"]},
+  // Chick-fil-A
+  "Grilled Chicken Sandwich no sauce":{order:'Say: "Grilled Chicken Sandwich, no CFA sauce"',includes:"Grilled chicken filet, multigrain bun, lettuce, tomato",macroNote:"Skipping CFA sauce saves 140 cal. Adding back: +140 cal, +15g fat",addons:["honey_mustard","bbq","buffalo","ranch","avocado","cheese"]},
+  "Grilled Nuggets 8ct":{order:'Say: "8-count Grilled Nuggets" — sauce on the side',includes:"8 grilled bite-sized chicken pieces, no breading",macroNote:"Macros are JUST the nuggets — sauces add calories below",addons:["honey_mustard","bbq","buffalo","ranch","cheese"]},
+  "Grilled Market Salad":{order:'Say: "Grilled Market Salad with vinaigrette on the side"',includes:"Grilled chicken, mixed greens, apples, strawberries, blueberries, blue cheese, nuts",macroNote:"Macros include light vinaigrette. Other dressings shown below",addons:["ranch","italian","caesar","blue_cheese","avocado"]},
+  "Grilled Cool Wrap":{order:'Say: "Grilled Cool Wrap, no avocado lime ranch"',includes:"Grilled chicken, flaxseed flour flat bread, lettuce, red cabbage, carrots, Monterey Jack & cheddar",macroNote:"Skipping avocado lime ranch saves ~140 cal",addons:["ranch","honey_mustard","bbq","avocado"]},
+  "Spicy Grilled Sandwich":{order:'Say: "Spicy Grilled Chicken Sandwich, no sauce"',includes:"Spicy grilled filet, multigrain bun, lettuce, tomato",macroNote:"Spicy version of the regular grilled sandwich",addons:["honey_mustard","ranch","cheese","bacon","avocado"]},
+  "Grilled Chicken Club":{order:'Say: "Grilled Chicken Club Sandwich, no mayo"',includes:"Grilled chicken, multigrain bun, lettuce, tomato, bacon, Colby-Jack cheese",macroNote:"Already includes bacon & cheese. Skipping mayo saves ~100 cal",addons:["mayo","honey_mustard","avocado","ranch"]},
+  "Grilled Nuggets 12ct + Salad":{order:'Say: "12-count Grilled Nuggets and a Side Salad, dressing on side"',includes:"12 grilled bite-size chicken + mixed greens side salad",macroNote:"Dressing NOT included — choose below",addons:["ranch","vinaigrette","caesar","honey_mustard","blue_cheese"]},
+  // Chipotle
+  "Chicken Bowl no cheese/SC":{order:'Build a Bowl: chicken, white rice, black beans, fajita veggies, mild salsa, romaine — no cheese, no sour cream',includes:"Chicken (4oz), white rice (1 scoop), black beans, fajita veg, mild salsa, romaine lettuce",macroNote:"This is the cleanest macro split. Add-ons below show extras",addons:["cheese","sour_cream","guac","queso","pico","fajita_veg"]},
+  "Steak Bowl + fajita":{order:'Build a Bowl: steak, white rice, black beans, fajita veggies, salsa',includes:"Steak (4oz), white rice, black beans, fajita veggies, salsa",macroNote:"Skipping guac saves 230 cal. Adding it: +230 cal, +22g fat",addons:["guac","cheese","sour_cream","queso","extra_chicken"]},
+  "Chicken Salad no dressing":{order:'Say: "Salad with chicken, fajita veggies, salsa — no dressing, no cheese"',includes:"Romaine, chicken (4oz), fajita veggies, mild salsa, pico",macroNote:"No dressing included. Chipotle vinaigrette adds ~250 cal",addons:["vinaigrette","cheese","sour_cream","guac","queso"]},
+  "Barbacoa Bowl brown rice":{order:'Build a Bowl: barbacoa, brown rice, black beans, fajita veggies, salsa',includes:"Barbacoa beef, brown rice, black beans, fajita veg, salsa",macroNote:"High fiber from brown rice + beans",addons:["guac","cheese","sour_cream","queso","fajita_veg"]},
+  "Double Protein Chicken Bowl":{order:'Build a Bowl: DOUBLE chicken (2 scoops), white rice, black beans, fajita veg, salsa, romaine',includes:"8oz chicken total, rice, beans, veg, salsa, romaine",macroNote:"Best for muscle building days. Extra protein costs ~$5",addons:["guac","cheese","queso","sour_cream","fajita_veg"]},
+  "Chicken Bowl brown rice":{order:'Build a Bowl: chicken, brown rice, black beans, fajita veggies, salsa, romaine',includes:"Chicken (4oz), brown rice, black beans, fajita veg, mild salsa, romaine",macroNote:"Higher fiber than white rice version",addons:["guac","cheese","sour_cream","queso","extra_chicken"]},
+  "Steak Bowl salsa only":{order:'Build a Bowl: steak, white rice, black beans, fajita veggies, salsa only — no cheese, no sour cream',includes:"Steak, white rice, black beans, fajita veg, mild salsa",macroNote:"Clean macros — no cheese or sour cream",addons:["cheese","sour_cream","guac","queso"]},
+  "Sofritas Bowl vegan":{order:'Build a Bowl: sofritas, brown rice, black beans, fajita veggies, salsa, romaine — no cheese',includes:"Sofritas (organic tofu), brown rice, black beans, fajita veg, salsa, romaine",macroNote:"Fully vegan option — high fiber",addons:["guac","fajita_veg","pico","cheese","sour_cream"]},
+  "Chicken Salad Bowl":{order:'Say: "Salad with chicken, fajita veggies, salsa, romaine"',includes:"Romaine, chicken, fajita veggies, salsa, pico",macroNote:"Light dinner option — no rice or beans",addons:["vinaigrette","cheese","guac","queso","sour_cream"]},
+  "Barbacoa no rice extra veg":{order:'Build a Bowl: barbacoa, NO rice, extra fajita veggies, black beans, salsa, romaine',includes:"Barbacoa, extra fajita veg, black beans, salsa, romaine — no rice",macroNote:"Low-carb high-protein option",addons:["guac","cheese","queso","sour_cream","fajita_veg"]},
+};
+
 const FF=[
   {chain:"McDonald's",emoji:"🍟",color:"#FFC72C",tip:"Grilled beats fried. No mayo saves 100 kcal.",meals:{breakfast:[{n:"Egg McMuffin",cal:300,p:18,c:30,f:12,note:"Classic high-protein"},{n:"Egg White Delight",cal:250,p:18,c:29,f:8,note:"Lower fat"},{n:"Fruit & Maple Oatmeal",cal:290,p:6,c:58,f:4,note:"Skip brown sugar"},{n:"Ham Egg Biscuit",cal:450,p:21,c:48,f:18,note:"More protein"},{n:"Sausage Burrito (egg only)",cal:300,p:12,c:26,f:16,note:"Egg & cheese only"}],lunch:[{n:"Grilled Chicken (no mayo)",cal:380,p:37,c:44,f:6,note:"Best option"},{n:"McDouble",cal:390,p:22,c:34,f:18,note:"Protein-dense"},{n:"Side Salad + Chicken",cal:260,p:30,c:14,f:8,note:"Dressing on side"},{n:"Southwest Salad",cal:350,p:35,c:27,f:11,note:"Dressing on side"},{n:"Artisan Grilled Chicken",cal:380,p:37,c:44,f:6,note:"Solid macros"}],dinner:[{n:"Grilled Chicken Sandwich",cal:380,p:37,c:44,f:6,note:"Best choice"},{n:"McDouble no mayo",cal:390,p:22,c:34,f:18,note:"Protein-controlled"},{n:"Filet-O-Fish no tartar",cal:300,p:15,c:38,f:11,note:"Omega-3"},{n:"Salad + 2x Chicken",cal:310,p:38,c:14,f:10,note:"Double protein"},{n:"Big Mac no sauce",cal:490,p:25,c:46,f:23,note:"Skip sauce"}]}},
   {chain:"Chick-fil-A",emoji:"🐔",color:"#E51636",tip:"Grilled nuggets = highest protein per cal in fast food.",meals:{breakfast:[{n:"Egg White Grill",cal:290,p:26,c:30,f:7,note:"Best FF breakfast"},{n:"Greek Yogurt Parfait",cal:230,p:13,c:31,f:6,note:"Light"},{n:"Hash Brown Bowl no cheese",cal:450,p:22,c:42,f:19,note:"Saves 80 kcal"},{n:"Chicken Egg Bagel",cal:480,p:29,c:48,f:17,note:"Skip butter"},{n:"Bacon Egg Biscuit",cal:450,p:22,c:36,f:23,note:"Skip butter"}],lunch:[{n:"Grilled Chicken Sandwich no sauce",cal:320,p:29,c:42,f:6,note:"Best macros"},{n:"Grilled Nuggets 8ct",cal:140,p:25,c:3,f:3.5,note:"Top protein/cal"},{n:"Grilled Market Salad",cal:330,p:27,c:26,f:13,note:"Vinaigrette on side"},{n:"Grilled Cool Wrap",cal:350,p:37,c:29,f:13,note:"High protein"},{n:"Spicy Grilled Sandwich",cal:350,p:31,c:42,f:8,note:"Still lean"}],dinner:[{n:"Grilled Chicken Club",cal:430,p:38,c:43,f:11,note:"Skip mayo"},{n:"Grilled Nuggets 12ct + Salad",cal:300,p:37,c:16,f:6,note:"High protein low carb"},{n:"Market Salad + Nuggets",cal:470,p:52,c:29,f:17,note:"Elite protein"},{n:"Cool Wrap + Fruit Cup",cal:420,p:38,c:40,f:13,note:"Balanced"},{n:"Sandwich + Side Salad",cal:395,p:31,c:50,f:8,note:"Full dinner"}]}},
@@ -224,11 +338,86 @@ const FF=[
   {chain:"Jimmy John's",emoji:"🥪",color:"#D4A843",tip:"Unwich = lettuce wrap. Cuts 200+ cal.",meals:{breakfast:[{n:"Not Served",cal:0,p:0,c:0,f:0,note:"No breakfast"}],lunch:[{n:"Turkey Tom Unwich",cal:270,p:22,c:5,f:17,note:"Low carb"},{n:"Slim Turkey WW",cal:330,p:24,c:44,f:4,note:"Low fat"},{n:"Club Tuna Unwich",cal:330,p:26,c:4,f:22,note:"Omega-3"},{n:"Big John Unwich",cal:300,p:24,c:4,f:20,note:"Roast beef"},{n:"Bootlegger Club Unwich",cal:360,p:28,c:5,f:24,note:"Double protein"}],dinner:[{n:"Billy Club Unwich",cal:340,p:28,c:5,f:22,note:"High protein"},{n:"Italian Night Club half",cal:360,p:22,c:40,f:12,note:"Half is plenty"},{n:"Country Club Unwich",cal:290,p:22,c:4,f:18,note:"Light clean"},{n:"Bootlegger Club Unwich",cal:360,p:28,c:5,f:24,note:"Double protein"},{n:"Slim Tuna WW no mayo",cal:310,p:20,c:44,f:4,note:"Omega-3"}]}},
 ];
 
+// ─── FOOD ITEM DETAIL ───────────────────────────────────────
+function FoodItemDetail({item,chain,details,tier,onUpgrade,onBack}){
+  const[selAddons,setSelAddons]=useState({});
+  const isPro=tier==="pro";
+  // Compute live macros with selected add-ons
+  const totals=Object.keys(selAddons).reduce((acc,key)=>{
+    if(selAddons[key]&&ADDONS[key]){
+      acc.cal+=ADDONS[key].cal;acc.p+=ADDONS[key].p;acc.c+=ADDONS[key].c;acc.f+=ADDONS[key].f;
+    }
+    return acc;
+  },{cal:item.cal,p:item.p,c:item.c,f:item.f});
+  function toggle(key){setSelAddons(p=>({...p,[key]:!p[key]}));}
+
+  return(<div>
+    <BackBtn onClick={onBack}/>
+    <div style={{background:`linear-gradient(135deg,${chain.color}22,${chain.color}08)`,border:`1.5px solid ${chain.color}44`,borderRadius:18,padding:18,marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+        <span style={{fontSize:24}}>{chain.emoji}</span>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,letterSpacing:".1em",textTransform:"uppercase"}}>{chain.chain}</div>
+      </div>
+      <div style={{fontFamily:FH,fontSize:22,color:chain.color,letterSpacing:".04em",lineHeight:1.2}}>{item.n}</div>
+    </div>
+    {/* Live macro display */}
+    <Card glow={chain.color} ch={<div>
+      <Sec ch={Object.values(selAddons).some(v=>v)?"Live Macros (with your add-ons)":"Macros"} color={chain.color}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+        <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"10px 6px",borderLeft:`3px solid ${chain.color}`}}><div style={{fontFamily:FH,fontSize:20,color:chain.color}}>{totals.cal}</div><div style={{fontFamily:FB,fontSize:9,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>kcal</div></div>
+        <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"10px 6px",borderLeft:`3px solid ${C.cyan}`}}><div style={{fontFamily:FH,fontSize:20,color:C.cyan}}>{totals.p}</div><div style={{fontFamily:FB,fontSize:9,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>protein</div></div>
+        <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"10px 6px",borderLeft:`3px solid ${C.lime}`}}><div style={{fontFamily:FH,fontSize:20,color:C.lime}}>{totals.c}</div><div style={{fontFamily:FB,fontSize:9,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>carbs</div></div>
+        <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"10px 6px",borderLeft:`3px solid ${C.coral}`}}><div style={{fontFamily:FH,fontSize:20,color:C.coral}}>{totals.f}</div><div style={{fontFamily:FB,fontSize:9,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>fat</div></div>
+      </div>
+      {Object.values(selAddons).some(v=>v)&&<div style={{marginTop:10,fontFamily:FB,fontSize:11,color:C.lime,textAlign:"center"}}>Base: {item.cal}kcal · +{totals.cal-item.cal} from add-ons</div>}
+    </div>}/>
+    {/* How to order */}
+    {details?(<Card glow={C.amber} ch={<div>
+      <Sec ch="🗣 How To Order" color={C.amber}/>
+      <div style={{background:C.amber+"11",border:`1px solid ${C.amber}33`,borderRadius:10,padding:"10px 13px",marginBottom:10}}>
+        <div style={{fontFamily:FB,fontSize:11,color:C.amber,fontWeight:700,marginBottom:4,textTransform:"uppercase",letterSpacing:".1em"}}>At the counter:</div>
+        <div style={{fontFamily:FB,fontSize:13,color:C.text,lineHeight:1.6,fontStyle:"italic"}}>{details.order}</div>
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,fontWeight:700,marginBottom:4,textTransform:"uppercase",letterSpacing:".1em"}}>Comes with:</div>
+        <div style={{fontFamily:FB,fontSize:12,color:C.text,lineHeight:1.6}}>{details.includes}</div>
+      </div>
+      <div style={{background:C.card2,borderRadius:8,padding:"8px 12px",fontFamily:FB,fontSize:11,color:C.sub,lineHeight:1.6}}>💡 {details.macroNote}</div>
+    </div>}/>):(<Card ch={<div style={{textAlign:"center",padding:"10px 0"}}>
+      <div style={{fontFamily:FB,fontSize:12,color:C.sub,lineHeight:1.6}}>✓ {item.note}</div>
+    </div>}/>)}
+    {/* Pro: Customizer */}
+    {details&&details.addons&&details.addons.length>0&&(isPro?(<Card glow={C.gold} ch={<div>
+      <Sec ch="👑 Customize Your Order" color={C.gold}/>
+      <div style={{fontFamily:FB,fontSize:11,color:C.sub,marginBottom:12,lineHeight:1.6}}>Toggle add-ons below. Macros update live above.</div>
+      {details.addons.map(key=>{const addon=ADDONS[key];if(!addon)return null;const on=selAddons[key];return(<div key={key} className="tap" onClick={()=>toggle(key)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",borderRadius:10,background:on?C.gold+"18":C.card2,border:`1.5px solid ${on?C.gold:C.border}`,marginBottom:6,cursor:"pointer"}}>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:FB,fontSize:12,fontWeight:800,color:on?C.gold:C.text}}>{addon.name}</div>
+          <div style={{fontFamily:FB,fontSize:10,color:C.sub,marginTop:1}}>+{addon.cal}kcal · {addon.p}p · {addon.c}c · {addon.f}f</div>
+        </div>
+        <div style={{width:24,height:24,borderRadius:6,background:on?C.gold:"transparent",border:`1.5px solid ${on?C.gold:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:C.bg,fontWeight:800}}>{on?"✓":""}</div>
+      </div>);})}
+    </div>}/>):(<LockedFeature tierRequired="pro" onUpgrade={()=>onUpgrade("pro")}><Card ch={<div>
+      <Sec ch="👑 Customize Your Order" color={C.gold}/>
+      <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginBottom:10}}>Toggle dressings, toppings, and add-ons. Watch macros update in real time. Find out exactly how many calories ranch vs vinaigrette costs you.</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{details.addons.slice(0,5).map(key=>ADDONS[key]&&(<Tag key={key} ch={ADDONS[key].name} color={C.gold}/>))}</div>
+    </div>}/></LockedFeature>))}
+  </div>);
+}
+
 // ─── FAST FOOD TAB ────────────────────────────────────────
 function FastFoodTab({tier,onUpgrade}){
   const[chain,setChain]=useState(null);
   const[meal,setMeal]=useState("lunch");
+  const[selItem,setSelItem]=useState(null);
   const FREE_CHAINS=3;
+
+  if(selItem){
+    const c=FF.find(x=>x.chain===chain);
+    const details=ITEM_DETAILS[selItem.n];
+    return(<FoodItemDetail item={selItem} chain={c} details={details} tier={tier} onUpgrade={onUpgrade} onBack={()=>setSelItem(null)}/>);
+  }
+
   if(chain){
     const c=FF.find(x=>x.chain===chain);
     return(<div>
@@ -241,7 +430,7 @@ function FastFoodTab({tier,onUpgrade}){
         <div style={{background:c.color+"18",borderRadius:9,padding:"9px 13px"}}><div style={{fontFamily:FB,fontSize:10,color:c.color,fontWeight:700,marginBottom:2}}>💡 PRO TIP</div><div style={{fontFamily:FB,fontSize:12,color:C.text,lineHeight:1.7}}>{c.tip}</div></div>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:12}}>{["breakfast","lunch","dinner"].map(m=>(<button key={m} className="tap" onClick={()=>setMeal(m)} style={{flex:1,padding:"9px 4px",borderRadius:11,border:`1.5px solid ${meal===m?C.lime:C.border}`,background:meal===m?C.lime+"18":C.card2,color:meal===m?C.lime:C.sub,fontFamily:FH,fontSize:11,letterSpacing:".08em",cursor:"pointer",textTransform:"uppercase"}}>{m==="breakfast"?"🌅":m==="lunch"?"☀️":"🌙"} {m}</button>))}</div>
-      {c.meals[meal].map((item,i)=>(<Card key={i} ch={item.cal===0?(<div style={{fontFamily:FB,fontSize:13,color:C.sub,textAlign:"center",padding:"10px 0"}}>{item.note}</div>):(<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}><div style={{fontFamily:FB,fontSize:13,fontWeight:800,color:C.text,flex:1,paddingRight:7}}>{item.n}</div><Tag ch={`${item.cal}kcal`} color={c.color}/></div><div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:7}}><Tag ch={`${item.p}g protein`} color={C.cyan}/><Tag ch={`${item.c}g carbs`} color={C.lime}/><Tag ch={`${item.f}g fat`} color={C.coral}/></div><div style={{fontFamily:FB,fontSize:11,color:C.sub,background:C.card2,borderRadius:7,padding:"7px 11px"}}>✓ {item.note}</div></div>)}/>))}
+      {c.meals[meal].map((item,i)=>{const hasDetails=!!ITEM_DETAILS[item.n];return(<div key={i} className="tap" onClick={()=>item.cal>0&&setSelItem(item)} style={{cursor:item.cal>0?"pointer":"default"}}><Card ch={item.cal===0?(<div style={{fontFamily:FB,fontSize:13,color:C.sub,textAlign:"center",padding:"10px 0"}}>{item.note}</div>):(<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}><div style={{fontFamily:FB,fontSize:13,fontWeight:800,color:C.text,flex:1,paddingRight:7}}>{item.n}</div><Tag ch={`${item.cal}kcal`} color={c.color}/></div><div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:7}}><Tag ch={`${item.p}g protein`} color={C.cyan}/><Tag ch={`${item.c}g carbs`} color={C.lime}/><Tag ch={`${item.f}g fat`} color={C.coral}/></div><div style={{fontFamily:FB,fontSize:11,color:C.sub,background:C.card2,borderRadius:7,padding:"7px 11px",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>✓ {item.note}</span>{hasDetails&&<span style={{color:c.color,fontFamily:FH,fontSize:11,letterSpacing:".08em"}}>TAP →</span>}</div></div>)}/></div>);})}
     </div>);
   }
   return(<div>
