@@ -223,7 +223,10 @@ function BFGuideModal({gender,onClose,onPick}){
   const presets=gender==="female"
     ?[{bf:16,label:"Athletic"},{bf:20,label:"Fit",rec:true},{bf:24,label:"Healthy",rec:true},{bf:28,label:"Average"},{bf:32,label:"Above Avg"}]
     :[{bf:8,label:"Shredded"},{bf:12,label:"Athletic",rec:true},{bf:15,label:"Fit",rec:true},{bf:20,label:"Average"},{bf:25,label:"Above Avg"}];
-  const imgFile=gender==="female"?"bf-women.png":"bf-men.png";
+  const[imgIdx,setImgIdx]=useState(0);
+  // Try both lowercase and uppercase PNG extensions (GitHub Pages is case-sensitive)
+  const imgVariants=gender==="female"?["bf-women.png","bf-women.PNG","bf-women.jpg","bf-women.jpeg"]:["bf-men.png","bf-men.PNG","bf-men.jpg","bf-men.jpeg"];
+  const imgFile=imgVariants[imgIdx];
   return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(8px)"}}>
     <div className="au" style={{background:C.card,borderRadius:"24px 24px 0 0",padding:20,width:"100%",maxWidth:640,maxHeight:"92vh",overflowY:"auto"}}>
       <div style={{textAlign:"center",marginBottom:14}}>
@@ -236,10 +239,10 @@ function BFGuideModal({gender,onClose,onPick}){
       </div>
       {/* Chart image — falls back to text guide if image missing */}
       {!imgError?(<div style={{borderRadius:14,overflow:"hidden",marginBottom:14,background:C.card2,border:`1px solid ${C.border}`}}>
-        <img src={imgFile} alt={`Body Fat Chart (${gender})`} onError={()=>setImgError(true)} style={{width:"100%",display:"block"}}/>
+        <img src={imgFile} alt={`Body Fat Chart (${gender})`} onError={()=>{if(imgIdx<imgVariants.length-1)setImgIdx(imgIdx+1);else setImgError(true);}} style={{width:"100%",display:"block"}}/>
       </div>):(<div style={{background:C.amber+"18",border:`1px solid ${C.amber}33`,borderRadius:11,padding:"12px 14px",marginBottom:14}}>
         <div style={{fontFamily:FB,fontSize:12,color:C.amber,fontWeight:700,marginBottom:4}}>📷 Chart image not loaded</div>
-        <div style={{fontFamily:FB,fontSize:11,color:C.sub,lineHeight:1.6}}>Place <b style={{color:C.text}}>{imgFile}</b> in the same folder as index.html on your site. Until then, use the recommended targets below.</div>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,lineHeight:1.6}}>Upload <b style={{color:C.text}}>{imgVariants[0]}</b> (or .PNG / .jpg) to the same folder as index.html.</div>
       </div>)}
       {/* Quick presets */}
       <div style={{marginBottom:14}}>
@@ -370,7 +373,7 @@ const ITEM_DETAILS={
   "Baked Potato + Chili":{order:'Say: "Plain Baked Potato and Small Chili"',includes:"Whole baked potato (no toppings) + small chili",macroNote:"Add toppings below to make it a full meal",addons:["cheese","sour_cream","bacon"]},
   "Grilled Chicken + Salad":{order:'Say: "Grilled Chicken Sandwich and Side Salad, dressing on side"',includes:"Grilled chicken sandwich + side salad",macroNote:"Dressing NOT included",addons:["ranch","vinaigrette","caesar","honey_mustard","italian"]},
   "Apple Salad + Chicken":{order:'Say: "Apple Pecan Salad with extra chicken, dressing on side"',includes:"Mixed greens, grilled chicken, apples, pecans, blue cheese, extra chicken",macroNote:"Dressing NOT included",addons:["ranch","vinaigrette","blue_cheese","caesar"]},
-  "Dave's Single no mayo":{order:'Say: "Dave\\'s Single, no mayo"',includes:"Brioche bun, 1/4 lb beef patty, American cheese, lettuce, tomato, pickle, onion, ketchup, mustard",macroNote:"Skip mayo to save ~100 cal",addons:["mayo","bacon","cheese","ranch","bbq"]},
+  "Dave's Single no mayo":{order:`Say: "Dave's Single, no mayo"`,includes:"Brioche bun, 1/4 lb beef patty, American cheese, lettuce, tomato, pickle, onion, ketchup, mustard",macroNote:"Skip mayo to save ~100 cal",addons:["mayo","bacon","cheese","ranch","bbq"]},
   // Taco Bell breakfast
   "Egg & Cheese Taco x2":{order:'Say: "Two Egg & Cheese Breakfast Tacos"',includes:"Soft flour taco shell, scrambled eggs, three-cheese blend (×2 tacos)",macroNote:"Get 2 for adequate breakfast protein",addons:["cheese","sour_cream","bacon","bbq"]},
   "Grande Scrambler Fresco":{order:'Say: "Grande Toasted Breakfast Burrito, Fresco style"',includes:"Tortilla, eggs, cheese, hash browns + Fresco (salsa replaces sour cream)",macroNote:"Fresco style saves ~100 cal",addons:["bacon","cheese","sour_cream","mayo"]},
@@ -443,9 +446,9 @@ const ITEM_DETAILS={
   "Cheeseburger Protein Style":{order:'Say: "Cheeseburger Protein Style"',includes:"Beef patty, cheese, lettuce wrap (no bun), tomato, onion, spread",macroNote:"Low carb cheese option",addons:["mayo","mustard","ketchup"]},
   "Grilled Cheese Protein Style":{order:'Say: "Grilled Cheese Protein Style"',includes:"2 slices melted American cheese, lettuce wrap (no bun), tomato, onion, spread",macroNote:"Vegetarian low-carb option",addons:["mayo","mustard","ketchup"]},
   // Raising Cane's
-  "Box Combo no sauce coleslaw":{order:'Say: "Box Combo, no sauce, swap fries for extra coleslaw"',includes:"4 chicken fingers, Texas toast, coleslaw (×2), drink — no Cane\\'s sauce",macroNote:"Best combo. Swapping fries saves ~300 cal",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
+  "Box Combo no sauce coleslaw":{order:'Say: "Box Combo, no sauce, swap fries for extra coleslaw"',includes:`4 chicken fingers, Texas toast, coleslaw (×2), drink — no Cane's sauce`,macroNote:"Best combo. Swapping fries saves ~300 cal",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
   "3 Finger no sauce":{order:'Say: "3 Finger Combo, no sauce, swap fries for coleslaw"',includes:"3 chicken fingers, Texas toast, coleslaw, drink",macroNote:"Lower cal combo option",addons:["honey_mustard","ranch","bbq","buffalo"]},
-  "Sandwich no sauce":{order:'Say: "Chicken Sandwich, no Cane\\'s sauce"',includes:"Bun, 3 chicken fingers, lettuce, pickles",macroNote:"Skipping Cane\\'s sauce saves ~150 cal",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
+  "Sandwich no sauce":{order:`Say: "Chicken Sandwich, no Cane's sauce"`,includes:"Bun, 3 chicken fingers, lettuce, pickles",macroNote:"Skipping Cane's sauce saves ~150 cal",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
   "3 Tenders only":{order:'Say: "3 Chicken Fingers only" (a la carte)',includes:"3 chicken fingers, no sides or sauce",macroNote:"Pure protein — pair with a side salad",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
   "Caniac no sauce":{order:'Say: "Caniac Combo, no sauce, swap fries for coleslaw"',includes:"6 chicken fingers, Texas toast, coleslaw (×2), drink",macroNote:"Highest protein combo",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
   "Box no sauce coleslaw":{order:'Say: "Box Combo, no sauce, double coleslaw, no fries"',includes:"4 chicken fingers, Texas toast, 2x coleslaw, drink",macroNote:"Smart swap for cleaner macros",addons:["honey_mustard","ranch","bbq","buffalo"]},
@@ -484,7 +487,7 @@ const ITEM_DETAILS={
   "Billy Club Unwich":{order:'Say: "Billy Club Unwich"',includes:"Lettuce wrap, roast beef, ham, provolone, lettuce, tomato, mayo",macroNote:"High protein dinner with cheese included",addons:["mayo","cheese","mustard","ranch","avocado"]},
   "Italian Night Club half":{order:'Say: "Half Italian Night Club, no mayo"',includes:"Half sub: salami, capicola, ham, provolone, lettuce, tomato, onion, oil & vinegar, oregano",macroNote:"Half portion plenty for dinner",addons:["mayo","cheese","mustard","italian","avocado"]},
   "Country Club Unwich":{order:'Say: "Country Club Unwich, no mayo"',includes:"Lettuce wrap, turkey, ham, provolone, cucumber, lettuce, tomato",macroNote:"Light and lean dinner option",addons:["mayo","cheese","mustard","ranch","avocado"]},
-  "Slim Tuna WW no mayo":{order:'Say: "Slim Tuna on Wheat, no mayo" (won\\'t be tuna salad, just plain)',includes:"Whole wheat bread, tuna (note: standard tuna comes with mayo mixed in)",macroNote:"Omega-3, very low fat sub",addons:["mayo","cheese","mustard","avocado"]},
+  "Slim Tuna WW no mayo":{order:`Say: "Slim Tuna on Wheat, no mayo" (won't be tuna salad, just plain)`,includes:"Whole wheat bread, tuna (note: standard tuna comes with mayo mixed in)",macroNote:"Omega-3, very low fat sub",addons:["mayo","cheese","mustard","avocado"]},
 };
 
 const FF=[
