@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#08090F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FitCore">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%2308090F'/%3E%3Ctext x='50%25' y='52%25' text-anchor='middle' dy='.35em' font-size='100' fill='%23C8FF00'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+<title>FitCore</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:#08090F;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body{font-family:'Nunito',sans-serif;color:#EDF2FF}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+input::placeholder{color:#647A96;opacity:.5}
+select option{background:#1A2235}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:#1E2D45;border-radius:4px}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.au{animation:up .25s ease both}
+.tap:active{transform:scale(.96);opacity:.88}
+.pulse{animation:pulse 1s ease infinite}
+button{font-family:inherit}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel" data-presets="react" data-type="module">
+const { useState, useEffect, useRef } = React;
+
+const C={bg:"#08090F",card:"#141B26",card2:"#1A2235",surface:"#0F1218",lime:"#C8FF00",cyan:"#00E5FF",coral:"#FF4D6D",amber:"#FFB800",purple:"#A855F7",green:"#22C55E",teal:"#14B8A6",orange:"#F97316",text:"#EDF2FF",sub:"#647A96",border:"#1E2D45",gold:"#FFD700"};
+const FH="'Bebas Neue',Impact,sans-serif";
+const FB="'Nunito','Segoe UI',sans-serif";
+
+// ─── PERSISTENCE ────────────────────────────────────────────
+const STORAGE_KEY = 'fitcore_v2';
+function loadState() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    return s ? JSON.parse(s) : null;
+  } catch(e) { return null; }
+}
+function saveState(state) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+// ─── TIER SYSTEM ────────────────────────────────────────────
+const TIERS = {
+  free:  { id:"free",  name:"Free",   price:"$0",    color:C.sub,    icon:"🆓" },
+  basic: { id:"basic", name:"Basic",  price:"$4.99", color:C.cyan,   icon:"⚡" },
+  pro:   { id:"pro",   name:"Pro",    price:"$9.99", color:C.gold,   icon:"👑" },
+};
+const FEATURES = [
+  { label:"Fast Food Guide (3 chains)", free:true, basic:false, pro:false },
+  { label:"Fast Food Guide (all 14)", free:false, basic:true, pro:true },
+  { label:"Calorie Target", free:true, basic:true, pro:true },
+  { label:"Basic Workout Split", free:true, basic:true, pro:true },
+  { label:"Workout Calendar", free:true, basic:true, pro:true },
+  { label:"No Ads", free:false, basic:true, pro:true },
+  { label:"Full Macro Breakdown", free:false, basic:true, pro:true },
+  { label:"Home Cook Meal Plan", free:false, basic:true, pro:true },
+  { label:"Full Weekly Workout Plan", free:false, basic:true, pro:true },
+  { label:"Food Log + Progress Rings", free:false, basic:false, pro:true },
+  { label:"Rest Timer", free:false, basic:false, pro:true },
+  { label:"Muscle Group Selector", free:false, basic:false, pro:true },
+  { label:"Workout History", free:false, basic:false, pro:true },
+  { label:"Timeline Goal Tracker", free:false, basic:false, pro:true },
+];
+
+// ─── UI ────────────────────────────────────────────────────
+const Card=({ch,glow,sx})=>(<div className="au" style={{background:C.card,border:`1px solid ${glow?glow+"44":C.border}`,borderRadius:18,padding:18,marginBottom:12,boxShadow:glow?`0 0 24px ${glow}1A`:"none",...sx}}>{ch}</div>);
+const Sec=({ch,color=C.lime})=>(<div style={{fontFamily:FH,fontSize:12,letterSpacing:".22em",color,textTransform:"uppercase",marginBottom:12,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>{ch}</div>);
+const Inp=({label,...p})=>(<div>{label&&<div style={{fontFamily:FB,fontSize:10,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".12em",marginBottom:5}}>{label}</div>}<input {...p} style={{width:"100%",background:C.card2,border:`1.5px solid ${C.border}`,borderRadius:10,padding:"11px 12px",color:C.text,fontSize:16,fontFamily:FB,fontWeight:700,outline:"none",...p.style}} onFocus={e=>e.target.style.borderColor=C.lime} onBlur={e=>e.target.style.borderColor=C.border}/></div>);
+const Btn=({ch,color=C.lime,onClick,disabled,sx,full=true})=>(<button className="tap" onClick={onClick} disabled={disabled} style={{width:full?"100%":"auto",padding:"13px 20px",borderRadius:13,border:"none",background:disabled?C.card2:`linear-gradient(135deg,${color},${color}CC)`,color:disabled?C.sub:C.bg,fontFamily:FH,fontSize:16,letterSpacing:".1em",cursor:disabled?"not-allowed":"pointer",boxShadow:disabled?"none":`0 4px 18px ${color}44`,marginTop:6,...sx}}>{ch}</button>);
+const Tag=({ch,color})=>(<span style={{background:color+"22",color,border:`1px solid ${color}44`,borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:800,fontFamily:FB,whiteSpace:"nowrap"}}>{ch}</span>);
+const SB=({label,value,unit,color=C.lime})=>(<div style={{background:C.card2,borderRadius:13,border:`1px solid ${color}22`,borderLeft:`3px solid ${color}`,padding:"12px"}}><div style={{fontFamily:FB,fontSize:9,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".15em",marginBottom:2}}>{label}</div><div style={{fontFamily:FH,fontSize:24,color,lineHeight:1}}>{value}</div>{unit&&<div style={{fontFamily:FB,fontSize:10,color:C.sub,marginTop:2}}>{unit}</div>}</div>);
+const Ring=({pct,color,size=66,stroke=5})=>{const r=(size-stroke)/2,circ=2*Math.PI*r,dash=circ*Math.min(1,pct/100);return(<svg width={size} height={size} style={{transform:"rotate(-90deg)"}}><circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.card2} strokeWidth={stroke}/><circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{transition:"stroke-dasharray .5s ease"}}/></svg>);};
+const BackBtn=({onClick})=>(<button className="tap" onClick={onClick} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:9,padding:"7px 14px",color:C.sub,fontFamily:FB,fontSize:11,fontWeight:700,cursor:"pointer",marginBottom:12}}>← Back</button>);
+
+// ─── ENGINE ───────────────────────────────────────────────
+const BMR=(w,h,age,g)=>{const kg=w*.4536,cm=h*2.54;return g==="male"?10*kg+6.25*cm-5*age+5:10*kg+6.25*cm-5*age-161};
+const ACT={sedentary:1.2,light:1.375,moderate:1.55,active:1.725,veryactive:1.9};
+const tCals=(t,g)=>g==="lose"?Math.round(t-500):g==="gain"?Math.round(t+300):Math.round(t+100);
+const tMacros=(cals,w,g)=>{const p=Math.round(w*1.05),f=Math.round((cals*(g==="lose"?.27:.30))/9),carbs=Math.round((cals-p*4-f*9)/4);return{protein:p,fat:f,carbs}};
+const RATES={lose:{fat:1.1,muscle:0.2},recomp:{fat:0.75,muscle:0.5},gain:{fat:0.4,muscle:0.65}};
+function tlCalc(weeks,fatG,muscleG,goal){const r=RATES[goal]||RATES.recomp;const fa=+Math.min(fatG,r.fat*weeks).toFixed(1);const ma=+Math.min(muscleG,r.muscle*weeks).toFixed(1);const fp=fatG>0?Math.round(fa/fatG*100):100;const mp=muscleG>0?Math.round(ma/muscleG*100):100;const wn=Math.max(fatG>0?Math.ceil(fatG/r.fat):0,muscleG>0?Math.ceil(muscleG/r.muscle):0);return{fa,ma,fp,mp,wn}}
+
+// ─── LOCK OVERLAY ───────────────────────────────────────────
+function LockedFeature({tierRequired,onUpgrade,children}){
+  return(<div style={{position:"relative"}}>
+    <div style={{opacity:.25,pointerEvents:"none",userSelect:"none"}}>{children}</div>
+    <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"rgba(8,9,15,.85)",borderRadius:16,backdropFilter:"blur(4px)"}}>
+      <div style={{fontSize:32,marginBottom:8}}>🔒</div>
+      <div style={{fontFamily:FH,fontSize:18,color:C.text,letterSpacing:".06em",marginBottom:4}}>{TIERS[tierRequired].icon} {TIERS[tierRequired].name.toUpperCase()} FEATURE</div>
+      <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginBottom:14,textAlign:"center",padding:"0 20px"}}>Unlock with {TIERS[tierRequired].name} plan</div>
+      <button className="tap" onClick={onUpgrade} style={{padding:"10px 24px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${TIERS[tierRequired].color},${TIERS[tierRequired].color}CC)`,color:C.bg,fontFamily:FH,fontSize:14,letterSpacing:".08em",cursor:"pointer"}}>UPGRADE → {TIERS[tierRequired].price}/mo</button>
+    </div>
+  </div>);
+}
+
+// ─── PAYWALL ────────────────────────────────────────────────
+function PaywallModal({onSelect,onClose,currentTier}){
+  const[sel,setSel]=useState("pro");
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(8px)"}}>
+    <div className="au" style={{background:C.card,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxWidth:640,maxHeight:"90vh",overflowY:"auto"}}>
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <div style={{fontSize:36,marginBottom:8}}>⚡</div>
+        <div style={{fontFamily:FH,fontSize:28,color:C.lime,letterSpacing:".06em"}}>UPGRADE FITCORE</div>
+        <div style={{fontFamily:FB,fontSize:13,color:C.sub,marginTop:4}}>Choose the plan that fits your goals</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+        {Object.values(TIERS).map(tier=>(<div key={tier.id} className="tap" onClick={()=>setSel(tier.id)} style={{padding:"12px 8px",borderRadius:14,border:`2px solid ${sel===tier.id?tier.color:C.border}`,background:sel===tier.id?tier.color+"18":C.card2,cursor:"pointer",textAlign:"center",position:"relative"}}>
+          {tier.id==="pro"&&<div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",background:`linear-gradient(135deg,${C.gold},${C.amber})`,color:C.bg,fontFamily:FH,fontSize:9,letterSpacing:".1em",padding:"2px 8px",borderRadius:20,whiteSpace:"nowrap"}}>BEST VALUE</div>}
+          <div style={{fontSize:22,marginBottom:4}}>{tier.icon}</div>
+          <div style={{fontFamily:FH,fontSize:16,color:sel===tier.id?tier.color:C.text,letterSpacing:".05em"}}>{tier.name}</div>
+          <div style={{fontFamily:FH,fontSize:20,color:sel===tier.id?tier.color:C.sub,marginTop:2}}>{tier.price}</div>
+          <div style={{fontFamily:FB,fontSize:9,color:C.sub}}>{tier.id==="free"?"forever":"/month"}</div>
+        </div>))}
+      </div>
+      <div style={{background:C.card2,borderRadius:14,padding:"14px",marginBottom:16}}>
+        {FEATURES.map((f,i)=>{const inc=f[sel];return(<div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:i<FEATURES.length-1?`1px solid ${C.border}`:"none"}}>
+          <div style={{width:18,height:18,borderRadius:"50%",background:inc?C.green+"22":C.card,border:`1px solid ${inc?C.green:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,flexShrink:0}}>{inc?"✓":"—"}</div>
+          <div style={{fontFamily:FB,fontSize:11,color:inc?C.text:C.sub}}>{f.label}</div>
+        </div>);})}
+      </div>
+      {sel!=="free"&&<div style={{background:C.amber+"18",border:`1px solid ${C.amber}33`,borderRadius:10,padding:"10px 14px",marginBottom:12,textAlign:"center"}}><div style={{fontFamily:FB,fontSize:12,color:C.amber,fontWeight:700}}>🎁 7-Day Free Trial — Cancel Anytime</div><div style={{fontFamily:FB,fontSize:11,color:C.sub,marginTop:2}}>Payments via App Store when published</div></div>}
+      <Btn ch={sel==="free"?"CONTINUE WITH FREE":`START FREE TRIAL — ${TIERS[sel].name.toUpperCase()}`} color={TIERS[sel].color} onClick={()=>onSelect(sel)}/>
+      {currentTier&&<button className="tap" onClick={onClose} style={{width:"100%",padding:"12px",background:"none",border:"none",color:C.sub,fontFamily:FB,fontSize:12,cursor:"pointer",marginTop:8}}>Keep my current plan</button>}
+    </div>
+  </div>);
+}
+
+// ─── ONBOARDING ────────────────────────────────────────────
+function Onboarding({onDone}){
+  const[step,setStep]=useState(0);
+  const[showBFGuide,setShowBFGuide]=useState(false);
+  const[f,setF]=useState({gender:"male",age:"",weight:"",height:"",activity:"moderate",goal:"recomp",goalWeight:"",goalBf:"12"});
+  const u=(k,v)=>setF(p=>({...p,[k]:v}));
+  function finish(){
+    const age=+f.age||30,w=+f.weight||163,h=+f.height||70,goalW=+f.goalWeight||w;
+    const leanMass=w*.82,fatMass=w*.18;
+    const goalFat=goalW*(+f.goalBf/100),goalLean=goalW-goalFat;
+    const fatToLose=+Math.max(0,fatMass-goalFat).toFixed(1);
+    const muscleToGain=+Math.max(0,goalLean-leanMass).toFixed(1);
+    const b=BMR(w,h,age,f.gender),t=b*(ACT[f.activity]||1.55);
+    const calories=tCals(t,f.goal),macros=tMacros(calories,w,f.goal);
+    onDone({calories,macros,fatToLose,muscleToGain,leanMass,fatMass,goal:f.goal,weight:w,bf:18,workoutDays:f.goal==="gain"?5:4});
+  }
+  const steps=[
+    {title:"Let's Build Your Plan",sub:"Quick setup — 3 steps",content:(<div>
+      <div style={{display:"flex",gap:10,marginBottom:14}}>
+        {["male","female"].map(g=>(<div key={g} className="tap" onClick={()=>u("gender",g)} style={{flex:1,padding:16,borderRadius:14,border:`2px solid ${f.gender===g?C.lime:C.border}`,background:f.gender===g?C.lime+"18":C.card2,textAlign:"center",cursor:"pointer"}}>
+          <div style={{fontSize:32,marginBottom:6}}>{g==="male"?"♂️":"♀️"}</div>
+          <div style={{fontFamily:FB,fontSize:14,fontWeight:800,color:f.gender===g?C.lime:C.sub,textTransform:"capitalize"}}>{g}</div>
+        </div>))}
+      </div>
+      <Inp label="Age" type="number" placeholder="Enter your age" value={f.age} onChange={e=>u("age",e.target.value)}/>
+    </div>)},
+    {title:"Your Body",sub:"Current stats",content:(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Inp label="Weight (lbs)" type="number" placeholder="163" value={f.weight} onChange={e=>u("weight",e.target.value)}/>
+      <Inp label="Height (in)" type="number" placeholder="70" value={f.height} onChange={e=>u("height",e.target.value)}/>
+      <div style={{gridColumn:"1/-1"}}>
+        <div style={{fontFamily:FB,fontSize:10,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".12em",marginBottom:8}}>How Active Are You?</div>
+        {[["sedentary","😴 Sitting — desk job"],["light","🚶 Light — 1–3x/week"],["moderate","🏃 Moderate — 3–5x/week"],["active","💪 Very active — 6–7x/week"]].map(([k,v])=>(<div key={k} className="tap" onClick={()=>u("activity",k)} style={{padding:"11px 14px",borderRadius:11,border:`1.5px solid ${f.activity===k?C.lime:C.border}`,background:f.activity===k?C.lime+"12":C.card2,cursor:"pointer",marginBottom:7}}>
+          <div style={{fontFamily:FB,fontSize:12,fontWeight:700,color:f.activity===k?C.lime:C.text}}>{v}</div>
+        </div>))}
+      </div>
+    </div>)},
+    {title:"Your Goal",sub:"What are you working toward?",content:(<div>
+      {[["lose","🔥 Lose Fat","Cut calories, get shredded",C.coral],["recomp","⚡ Recomposition","Lose fat & build muscle",C.lime],["gain","💪 Build Muscle","Bulk up, add size",C.cyan]].map(([k,label,desc,col])=>(<div key={k} className="tap" onClick={()=>u("goal",k)} style={{padding:"16px",borderRadius:14,border:`2px solid ${f.goal===k?col:C.border}`,background:f.goal===k?col+"18":C.card2,cursor:"pointer",marginBottom:10}}>
+        <div style={{fontFamily:FB,fontSize:15,fontWeight:800,color:f.goal===k?col:C.text}}>{label}</div>
+        <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginTop:3}}>{desc}</div>
+      </div>))}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:4}}>
+        <Inp label="Goal Weight (lbs)" type="number" placeholder="170" value={f.goalWeight} onChange={e=>u("goalWeight",e.target.value)}/>
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+            <div style={{fontFamily:FB,fontSize:10,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".12em"}}>Target BF %</div>
+            <button className="tap" onClick={()=>setShowBFGuide(true)} style={{width:18,height:18,borderRadius:"50%",background:C.cyan+"22",border:`1px solid ${C.cyan}`,color:C.cyan,fontFamily:FB,fontSize:10,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>?</button>
+          </div>
+          <input type="number" placeholder="12" value={f.goalBf} onChange={e=>u("goalBf",e.target.value)} style={{width:"100%",background:C.card2,border:`1.5px solid ${C.border}`,borderRadius:10,padding:"11px 12px",color:C.text,fontSize:16,fontFamily:FB,fontWeight:700,outline:"none"}}/>
+          <div style={{fontFamily:FB,fontSize:10,color:C.sub,marginTop:4,fontStyle:"italic"}}>Not sure? Tap the ? for a visual guide</div>
+        </div>
+      </div>
+    </div>)},
+  ];
+  return(<div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",padding:"0 16px 24px"}}>
+    <div style={{paddingTop:24,paddingBottom:20,textAlign:"center"}}>
+      <div style={{fontFamily:FH,fontSize:32,color:C.lime,letterSpacing:".1em"}}>⚡ FITCORE</div>
+      <div style={{fontFamily:FB,fontSize:11,color:C.sub,letterSpacing:".15em",textTransform:"uppercase",marginTop:2}}>Your Body · Your Plan · Your Story</div>
+    </div>
+    <div style={{display:"flex",gap:6,justifyContent:"center",marginBottom:24}}>{steps.map((_,i)=>(<div key={i} style={{width:i===step?24:8,height:8,borderRadius:4,background:i<=step?C.lime:C.card2,transition:"all .3s"}}/>))}</div>
+    <div style={{flex:1,maxWidth:480,margin:"0 auto",width:"100%"}}>
+      <div style={{marginBottom:20}}>
+        <div style={{fontFamily:FH,fontSize:30,color:C.lime,letterSpacing:".04em"}}>{steps[step].title}</div>
+        <div style={{fontFamily:FB,fontSize:13,color:C.sub,marginTop:2}}>{steps[step].sub}</div>
+      </div>
+      {steps[step].content}
+    </div>
+    <div style={{maxWidth:480,margin:"16px auto 0",width:"100%",display:"flex",gap:10}}>
+      {step>0&&<button className="tap" onClick={()=>setStep(step-1)} style={{flex:1,padding:14,borderRadius:13,border:`1px solid ${C.border}`,background:"transparent",color:C.sub,fontFamily:FH,fontSize:14,letterSpacing:".1em",cursor:"pointer"}}>← BACK</button>}
+      {step<steps.length-1
+        ?<Btn ch="NEXT →" onClick={()=>setStep(step+1)} color={C.lime} sx={{flex:1,marginTop:0}}/>
+        :<Btn ch="BUILD MY PLAN 🚀" onClick={finish} color={C.lime} sx={{flex:1,marginTop:0}}/>}
+    </div>
+    {showBFGuide&&<BFGuideModal gender={f.gender} onClose={()=>setShowBFGuide(false)} onPick={v=>{u("goalBf",String(v));setShowBFGuide(false);}}/>}
+  </div>);
+}
+
+// ─── BF GUIDE MODAL ─────────────────────────────────────────
+function BFGuideModal({gender,onClose,onPick}){
+  const[picked,setPicked]=useState(gender==="female"?22:12);
+  const[imgError,setImgError]=useState(false);
+  // Recommended targets by gender (used in the picker)
+  const presets=gender==="female"
+    ?[{bf:16,label:"Athletic"},{bf:20,label:"Fit",rec:true},{bf:24,label:"Healthy",rec:true},{bf:28,label:"Average"},{bf:32,label:"Above Avg"}]
+    :[{bf:8,label:"Shredded"},{bf:12,label:"Athletic",rec:true},{bf:15,label:"Fit",rec:true},{bf:20,label:"Average"},{bf:25,label:"Above Avg"}];
+  const[imgIdx,setImgIdx]=useState(0);
+  // Try both lowercase and uppercase PNG extensions (GitHub Pages is case-sensitive)
+  const imgVariants=gender==="female"?["bf-women.png","bf-women.PNG","bf-women.jpg","bf-women.jpeg"]:["bf-men.png","bf-men.PNG","bf-men.jpg","bf-men.jpeg"];
+  const imgFile=imgVariants[imgIdx];
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(8px)"}}>
+    <div className="au" style={{background:C.card,borderRadius:"24px 24px 0 0",padding:20,width:"100%",maxWidth:640,maxHeight:"92vh",overflowY:"auto"}}>
+      <div style={{textAlign:"center",marginBottom:14}}>
+        <div style={{fontFamily:FH,fontSize:24,color:C.cyan,letterSpacing:".06em"}}>📏 BODY FAT GUIDE</div>
+        <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginTop:4}}>Find your range, then pick your target</div>
+      </div>
+      <div style={{background:C.cyan+"11",border:`1px solid ${C.cyan}33`,borderRadius:10,padding:"10px 13px",marginBottom:14}}>
+        <div style={{fontFamily:FB,fontSize:11,color:C.cyan,fontWeight:700,marginBottom:4}}>💡 How to use this</div>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,lineHeight:1.6}}>1. Find the body that looks closest to where you want to be. 2. Pick your target % below. Most people aim for "Fit" or "Athletic" as a long-term goal.</div>
+      </div>
+      {/* Chart image — falls back to text guide if image missing */}
+      {!imgError?(<div style={{borderRadius:14,overflow:"hidden",marginBottom:14,background:C.card2,border:`1px solid ${C.border}`}}>
+        <img src={imgFile} alt={`Body Fat Chart (${gender})`} onError={()=>{if(imgIdx<imgVariants.length-1)setImgIdx(imgIdx+1);else setImgError(true);}} style={{width:"100%",display:"block"}}/>
+      </div>):(<div style={{background:C.amber+"18",border:`1px solid ${C.amber}33`,borderRadius:11,padding:"12px 14px",marginBottom:14}}>
+        <div style={{fontFamily:FB,fontSize:12,color:C.amber,fontWeight:700,marginBottom:4}}>📷 Chart image not loaded</div>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,lineHeight:1.6}}>Upload <b style={{color:C.text}}>{imgVariants[0]}</b> (or .PNG / .jpg) to the same folder as index.html.</div>
+      </div>)}
+      {/* Quick presets */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:FB,fontSize:11,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".12em",marginBottom:8}}>Quick Pick</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
+          {presets.map((p,i)=>(<div key={i} className="tap" onClick={()=>setPicked(p.bf)} style={{background:picked===p.bf?C.cyan+"22":C.card2,border:`1.5px solid ${picked===p.bf?C.cyan:p.rec?C.lime+"66":C.border}`,borderRadius:10,padding:"10px 4px",cursor:"pointer",textAlign:"center"}}>
+            <div style={{fontFamily:FH,fontSize:18,color:picked===p.bf?C.cyan:C.text}}>{p.bf}%</div>
+            <div style={{fontFamily:FB,fontSize:9,color:picked===p.bf?C.cyan:C.sub,fontWeight:700,marginTop:2}}>{p.label}</div>
+            {p.rec&&<div style={{fontFamily:FB,fontSize:8,color:C.lime,fontWeight:800,marginTop:2}}>⭐ POPULAR</div>}
+          </div>))}
+        </div>
+      </div>
+      {/* Custom number stepper */}
+      <div style={{background:C.card2,borderRadius:14,padding:"14px",marginBottom:14,border:`1px solid ${C.border}`}}>
+        <div style={{fontFamily:FB,fontSize:11,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".12em",marginBottom:10,textAlign:"center"}}>Your Target</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:14}}>
+          <button className="tap" onClick={()=>setPicked(Math.max(5,picked-1))} style={{width:46,height:46,borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.cyan,fontFamily:FH,fontSize:22,cursor:"pointer"}}>−</button>
+          <div style={{textAlign:"center",minWidth:100}}>
+            <div style={{fontFamily:FH,fontSize:48,color:C.cyan,lineHeight:1}}>{picked}<span style={{fontSize:24}}>%</span></div>
+            <div style={{fontFamily:FB,fontSize:10,color:C.sub,marginTop:2}}>body fat target</div>
+          </div>
+          <button className="tap" onClick={()=>setPicked(Math.min(50,picked+1))} style={{width:46,height:46,borderRadius:12,border:`1.5px solid ${C.border}`,background:C.card,color:C.cyan,fontFamily:FH,fontSize:22,cursor:"pointer"}}>+</button>
+        </div>
+      </div>
+      <Btn ch={`✓ USE ${picked}% AS MY TARGET`} color={C.cyan} onClick={()=>onPick(picked)}/>
+      <button className="tap" onClick={onClose} style={{width:"100%",padding:"12px",background:"none",border:`1px solid ${C.border}`,borderRadius:11,color:C.sub,fontFamily:FH,fontSize:13,cursor:"pointer",marginTop:8,letterSpacing:".08em"}}>✕ CANCEL</button>
+    </div>
+  </div>);
+}
+
+// ─── FAST FOOD DATA ────────────────────────────────────────
+const ADDONS={
+  mayo:{name:"Mayo (1 packet)",cal:94,p:0,c:0,f:10},
+  ranch:{name:"Ranch Dressing",cal:110,p:1,c:2,f:11},
+  honey_mustard:{name:"Honey Mustard",cal:60,p:0,c:13,f:0},
+  bbq:{name:"BBQ Sauce",cal:45,p:0,c:11,f:0},
+  buffalo:{name:"Buffalo Sauce",cal:15,p:0,c:1,f:1},
+  ketchup:{name:"Ketchup",cal:15,p:0,c:4,f:0},
+  mustard:{name:"Yellow Mustard",cal:5,p:0,c:1,f:0},
+  bacon:{name:"Bacon (2 strips)",cal:80,p:6,c:0,f:6},
+  cheese:{name:"American Cheese",cal:60,p:3,c:1,f:5},
+  avocado:{name:"Avocado / Guac",cal:80,p:1,c:4,f:7},
+  italian:{name:"Italian Dressing",cal:80,p:0,c:2,f:8},
+  vinaigrette:{name:"Light Vinaigrette",cal:50,p:0,c:3,f:4},
+  caesar:{name:"Caesar Dressing",cal:90,p:1,c:1,f:9},
+  blue_cheese:{name:"Blue Cheese Dressing",cal:120,p:1,c:1,f:13},
+  sour_cream:{name:"Sour Cream",cal:60,p:1,c:2,f:5},
+  extra_chicken:{name:"Extra Chicken (4oz)",cal:120,p:24,c:0,f:3},
+  guac:{name:"Guacamole",cal:230,p:2,c:8,f:22},
+  queso:{name:"Queso Blanco",cal:120,p:5,c:5,f:9},
+  fajita_veg:{name:"Fajita Veggies",cal:20,p:1,c:4,f:0},
+  pico:{name:"Pico de Gallo",cal:25,p:1,c:4,f:0},
+  black_beans:{name:"Black Beans",cal:130,p:8,c:22,f:1},
+};
+
+// Sides & drinks per chain — for the customizer
+const SIDES_BY_CHAIN={
+  "McDonald's":[
+    {key:"sm_fries",name:"Small Fries",cal:230,p:3,c:29,f:11},
+    {key:"md_fries",name:"Medium Fries",cal:320,p:4,c:43,f:15},
+    {key:"lg_fries",name:"Large Fries",cal:480,p:6,c:66,f:23},
+    {key:"hash_brown",name:"Hash Brown",cal:140,p:1,c:16,f:8},
+    {key:"apple_slices",name:"Apple Slices",cal:15,p:0,c:4,f:0},
+    {key:"side_salad",name:"Side Salad",cal:15,p:1,c:3,f:0},
+    {key:"coke",name:"Coca-Cola (medium)",cal:210,p:0,c:58,f:0},
+    {key:"diet_coke",name:"Diet Coke (any size)",cal:0,p:0,c:0,f:0},
+    {key:"sprite",name:"Sprite (medium)",cal:200,p:0,c:55,f:0},
+    {key:"oj",name:"Orange Juice",cal:190,p:2,c:42,f:0},
+    {key:"coffee_black",name:"Coffee (black)",cal:0,p:0,c:0,f:0},
+    {key:"vanilla_shake",name:"Vanilla Shake (small)",cal:480,p:11,c:78,f:13},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Chick-fil-A":[
+    {key:"waffle_fries_sm",name:"Waffle Fries (small)",cal:280,p:3,c:34,f:14},
+    {key:"waffle_fries_md",name:"Waffle Fries (medium)",cal:420,p:5,c:49,f:21},
+    {key:"fruit_cup",name:"Fruit Cup",cal:60,p:1,c:15,f:0},
+    {key:"side_salad",name:"Side Salad",cal:40,p:2,c:4,f:2},
+    {key:"mac_cheese",name:"Mac & Cheese (small)",cal:270,p:11,c:24,f:14},
+    {key:"soup",name:"Chicken Soup (cup)",cal:140,p:8,c:18,f:3},
+    {key:"sweet_tea",name:"Sweet Tea (medium)",cal:170,p:0,c:43,f:0},
+    {key:"unsweet_tea",name:"Unsweet Tea",cal:0,p:0,c:0,f:0},
+    {key:"lemonade",name:"Lemonade (medium)",cal:220,p:0,c:55,f:0},
+    {key:"diet_lemonade",name:"Diet Lemonade",cal:25,p:0,c:6,f:0},
+    {key:"coke",name:"Coca-Cola (medium)",cal:200,p:0,c:55,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Chipotle":[
+    {key:"chips",name:"Chips",cal:540,p:7,c:73,f:25},
+    {key:"chips_guac",name:"Chips & Guacamole",cal:770,p:9,c:81,f:47},
+    {key:"chips_salsa",name:"Chips & Salsa",cal:555,p:8,c:78,f:25},
+    {key:"chips_queso",name:"Chips & Queso",cal:780,p:13,c:80,f:43},
+    {key:"side_guac",name:"Side of Guacamole",cal:230,p:2,c:8,f:22},
+    {key:"coke",name:"Coca-Cola (regular)",cal:200,p:0,c:55,f:0},
+    {key:"diet_coke",name:"Diet Coke",cal:0,p:0,c:0,f:0},
+    {key:"lemonade",name:"Organic Lemonade",cal:140,p:0,c:34,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Subway":[
+    {key:"chips_lays",name:"Lay's Chips",cal:160,p:2,c:15,f:10},
+    {key:"chips_doritos",name:"Doritos",cal:150,p:2,c:18,f:8},
+    {key:"chips_baked",name:"Baked Lay's",cal:120,p:2,c:23,f:2},
+    {key:"cookie",name:"Cookie (1)",cal:200,p:2,c:30,f:9},
+    {key:"apple_slices",name:"Apple Slices",cal:35,p:0,c:9,f:0},
+    {key:"coke",name:"Coca-Cola (21oz)",cal:240,p:0,c:65,f:0},
+    {key:"diet_coke",name:"Diet Coke",cal:0,p:0,c:0,f:0},
+    {key:"sprite",name:"Sprite",cal:230,p:0,c:62,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Wendy's":[
+    {key:"sm_fries",name:"Small Fries",cal:330,p:4,c:43,f:15},
+    {key:"md_fries",name:"Medium Fries",cal:420,p:5,c:54,f:20},
+    {key:"sm_chili",name:"Small Chili",cal:240,p:17,c:24,f:7},
+    {key:"baked_potato",name:"Plain Baked Potato",cal:270,p:7,c:61,f:0},
+    {key:"side_salad",name:"Garden Side Salad",cal:25,p:1,c:5,f:0},
+    {key:"apple_bites",name:"Apple Bites",cal:35,p:0,c:9,f:0},
+    {key:"coke",name:"Coca-Cola (medium)",cal:230,p:0,c:63,f:0},
+    {key:"diet_coke",name:"Diet Coke",cal:0,p:0,c:0,f:0},
+    {key:"lemonade",name:"All-Natural Lemonade",cal:170,p:0,c:43,f:0},
+    {key:"frosty",name:"Frosty (small chocolate)",cal:340,p:8,c:55,f:9},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Taco Bell":[
+    {key:"chips_salsa",name:"Chips & Salsa",cal:300,p:4,c:38,f:15},
+    {key:"chips_guac",name:"Chips & Guacamole",cal:420,p:5,c:42,f:26},
+    {key:"chips_nacho",name:"Chips & Nacho Cheese",cal:300,p:5,c:31,f:18},
+    {key:"black_beans_rice",name:"Black Beans & Rice",cal:170,p:6,c:30,f:4},
+    {key:"cinnamon_twists",name:"Cinnamon Twists",cal:170,p:1,c:27,f:7},
+    {key:"baja_blast",name:"Mtn Dew Baja Blast (med)",cal:220,p:0,c:60,f:0},
+    {key:"pepsi",name:"Pepsi (medium)",cal:210,p:0,c:58,f:0},
+    {key:"diet_pepsi",name:"Diet Pepsi",cal:0,p:0,c:0,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Panera":[
+    {key:"chips_kettle",name:"Kettle Chips",cal:150,p:2,c:18,f:8},
+    {key:"baguette",name:"French Baguette",cal:180,p:7,c:36,f:1},
+    {key:"apple",name:"Whole Apple",cal:95,p:0,c:25,f:0},
+    {key:"yogurt",name:"Yogurt",cal:160,p:8,c:24,f:4},
+    {key:"cookie",name:"Chocolate Chip Cookie",cal:390,p:5,c:53,f:18},
+    {key:"green_tea",name:"Iced Green Tea",cal:0,p:0,c:0,f:0},
+    {key:"lemonade",name:"Strawberry Lemonade",cal:140,p:0,c:36,f:0},
+    {key:"coffee",name:"Coffee (black)",cal:5,p:0,c:0,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Starbucks":[
+    {key:"banana",name:"Banana",cal:110,p:1,c:29,f:0},
+    {key:"cake_pop",name:"Cake Pop",cal:140,p:1,c:21,f:6},
+    {key:"protein_bar",name:"Protein Bar",cal:250,p:12,c:30,f:9},
+    {key:"oatmeal",name:"Hearty Blueberry Oatmeal",cal:220,p:6,c:39,f:5},
+    {key:"americano",name:"Americano (grande, black)",cal:15,p:1,c:3,f:0},
+    {key:"cold_brew",name:"Cold Brew (grande)",cal:5,p:0,c:0,f:0},
+    {key:"latte",name:"Caffe Latte (grande, 2%)",cal:190,p:13,c:18,f:7},
+    {key:"frappuccino",name:"Caramel Frappuccino",cal:380,p:5,c:54,f:15},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Panda Express":[
+    {key:"steamed_rice",name:"Side Steamed Rice",cal:380,p:7,c:87,f:0},
+    {key:"fried_rice",name:"Side Fried Rice",cal:520,p:11,c:85,f:16},
+    {key:"chow_mein",name:"Side Chow Mein",cal:510,p:13,c:80,f:20},
+    {key:"super_greens",name:"Side Super Greens",cal:90,p:6,c:10,f:3},
+    {key:"egg_roll",name:"Chicken Egg Roll",cal:200,p:6,c:21,f:10},
+    {key:"crab_rangoon",name:"Cream Cheese Rangoon (3)",cal:190,p:5,c:18,f:8},
+    {key:"coke",name:"Coca-Cola (medium)",cal:200,p:0,c:55,f:0},
+    {key:"diet_coke",name:"Diet Coke",cal:0,p:0,c:0,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "In-N-Out":[
+    {key:"fries",name:"French Fries",cal:370,p:7,c:54,f:18},
+    {key:"animal_fries",name:"Animal Style Fries",cal:750,p:21,c:62,f:48},
+    {key:"cheese_fries",name:"Cheese Fries",cal:480,p:13,c:54,f:25},
+    {key:"coke",name:"Coca-Cola (medium)",cal:200,p:0,c:54,f:0},
+    {key:"diet_coke",name:"Diet Coke",cal:0,p:0,c:0,f:0},
+    {key:"lemonade",name:"Lemonade (medium)",cal:240,p:0,c:64,f:0},
+    {key:"vanilla_shake",name:"Vanilla Shake",cal:680,p:12,c:78,f:36},
+    {key:"chocolate_shake",name:"Chocolate Shake",cal:690,p:12,c:83,f:35},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Raising Cane's":[
+    {key:"fries",name:"Crinkle-Cut Fries",cal:410,p:5,c:50,f:21},
+    {key:"texas_toast",name:"Texas Toast",cal:170,p:4,c:18,f:9},
+    {key:"coleslaw",name:"Coleslaw",cal:130,p:1,c:11,f:9},
+    {key:"canes_sauce",name:"Cane's Sauce (cup)",cal:190,p:1,c:5,f:19},
+    {key:"sweet_tea",name:"Sweet Tea (regular)",cal:160,p:0,c:42,f:0},
+    {key:"unsweet_tea",name:"Unsweet Tea",cal:0,p:0,c:0,f:0},
+    {key:"lemonade",name:"Lemonade",cal:200,p:0,c:53,f:0},
+    {key:"coke",name:"Coca-Cola",cal:200,p:0,c:55,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Sweetgreen":[
+    {key:"focaccia",name:"Rosemary Focaccia",cal:230,p:5,c:30,f:11},
+    {key:"sparkling",name:"Sparkling Water",cal:0,p:0,c:0,f:0},
+    {key:"iced_tea",name:"Hibiscus Iced Tea",cal:0,p:0,c:0,f:0},
+    {key:"lemonade",name:"Spa Water Lemonade",cal:60,p:0,c:14,f:0},
+    {key:"kombucha",name:"Health-Ade Kombucha",cal:60,p:0,c:14,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Five Guys":[
+    {key:"sm_fries",name:"Little Fries",cal:530,p:8,c:72,f:23},
+    {key:"reg_fries",name:"Regular Fries",cal:950,p:15,c:130,f:41},
+    {key:"cajun_fries",name:"Cajun Fries (little)",cal:530,p:8,c:72,f:23},
+    {key:"peanuts",name:"Free Peanuts (handful)",cal:170,p:7,c:5,f:14},
+    {key:"coke",name:"Coca-Cola (regular)",cal:200,p:0,c:54,f:0},
+    {key:"diet_coke",name:"Diet Coke",cal:0,p:0,c:0,f:0},
+    {key:"vanilla_shake",name:"Vanilla Shake",cal:670,p:13,c:88,f:31},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+  "Jimmy John's":[
+    {key:"chips_reg",name:"Jimmy Chips",cal:160,p:2,c:18,f:9},
+    {key:"chips_baked",name:"Thinny Chips (baked)",cal:130,p:2,c:21,f:5},
+    {key:"pickle",name:"Jumbo Kosher Dill Pickle",cal:15,p:0,c:3,f:0},
+    {key:"cookie",name:"Chocolate Chunk Cookie",cal:410,p:5,c:52,f:20},
+    {key:"coke",name:"Coca-Cola (medium)",cal:200,p:0,c:55,f:0},
+    {key:"diet_coke",name:"Diet Coke",cal:0,p:0,c:0,f:0},
+    {key:"lemonade",name:"Lemonade",cal:160,p:0,c:41,f:0},
+    {key:"water",name:"Water",cal:0,p:0,c:0,f:0},
+  ],
+};
+
+
+// "How to order" details and add-on options per item
+const ITEM_DETAILS={
+  // McDonald's
+  "Grilled Chicken (no mayo)":{order:'Say: "Artisan Grilled Chicken Sandwich, no mayo"',includes:"Grilled chicken breast, sesame bun, lettuce, tomato",macroNote:"Macros shown are with no mayo. Adding mayo back: +94 cal, +10g fat",addons:["mayo","cheese","bacon","honey_mustard","bbq"]},
+  "McDouble":{order:'Say: "McDouble" (standard)',includes:"2 beef patties, bun, ketchup, mustard, pickles, onion, 1 slice cheese",macroNote:"Macros are for standard McDouble with all condiments",addons:["mayo","bacon","cheese","ranch","bbq"]},
+  "Big Mac no sauce":{order:'Say: "Big Mac, no Mac sauce"',includes:"2 beef patties, 3-piece bun, lettuce, pickles, onion, cheese — without Mac sauce",macroNote:"Skipping Mac sauce saves ~80 cal vs regular Big Mac",addons:["mayo","bacon","cheese","ranch","bbq"]},
+  "Filet-O-Fish no tartar":{order:'Say: "Filet-O-Fish, no tartar sauce"',includes:"Fish fillet, steamed bun, 1/2 slice cheese — without tartar sauce",macroNote:"Skipping tartar saves ~80 cal",addons:["mayo","cheese","ketchup"]},
+  "Side Salad + Grilled Chicken":{order:'Say: "Side salad with grilled chicken added, dressing on the side"',includes:"Mixed greens, tomatoes, cucumber + grilled chicken breast",macroNote:"Macros don't include dressing — choose wisely below",addons:["ranch","italian","vinaigrette","caesar","honey_mustard"]},
+  "Side Salad + Chicken":{order:'Say: "Side salad with grilled chicken added, dressing on the side"',includes:"Mixed greens, tomatoes, cucumber + grilled chicken breast",macroNote:"Macros don't include dressing",addons:["ranch","italian","vinaigrette","caesar"]},
+  "Southwest Salad":{order:'Say: "Southwest Grilled Chicken Salad, dressing on the side"',includes:"Lettuce mix, grilled chicken, corn, beans, tomatoes, lime tortilla strips",macroNote:"Macros don't include dressing",addons:["ranch","vinaigrette","cheese","avocado"]},
+  "Artisan Grilled Chicken":{order:'Say: "Artisan Grilled Chicken Sandwich" (standard)',includes:"Grilled chicken, artisan roll, lettuce, tomato, vinaigrette",macroNote:"Standard order — vinaigrette already included",addons:["mayo","cheese","bacon","avocado"]},
+  "Grilled Chicken Sandwich":{order:'Say: "Artisan Grilled Chicken Sandwich, no mayo"',includes:"Grilled chicken, artisan roll, lettuce, tomato, light vinaigrette",macroNote:"Macros assume no mayo",addons:["mayo","cheese","bacon","avocado","ranch"]},
+  "McDouble no mayo":{order:'Say: "McDouble, no mayo" (standard has no mayo)',includes:"2 beef patties, bun, ketchup, mustard, pickles, onion, cheese",macroNote:"Standard McDouble — no mayo to begin with",addons:["bacon","cheese","ranch","bbq"]},
+  "Salad + 2x Chicken":{order:'Say: "Side salad, add 2 grilled chicken, dressing on the side"',includes:"Mixed greens + 2 grilled chicken breasts",macroNote:"Dressing NOT included — choose below",addons:["ranch","italian","vinaigrette","caesar"]},
+  // Chick-fil-A
+  "Grilled Chicken Sandwich no sauce":{order:'Say: "Grilled Chicken Sandwich, no CFA sauce"',includes:"Grilled chicken filet, multigrain bun, lettuce, tomato",macroNote:"Skipping CFA sauce saves 140 cal. Adding back: +140 cal, +15g fat",addons:["honey_mustard","bbq","buffalo","ranch","avocado","cheese"]},
+  "Grilled Nuggets 8ct":{order:'Say: "8-count Grilled Nuggets" — sauce on the side',includes:"8 grilled bite-sized chicken pieces, no breading",macroNote:"Macros are JUST the nuggets — sauces add calories below",addons:["honey_mustard","bbq","buffalo","ranch","cheese"]},
+  "Grilled Market Salad":{order:'Say: "Grilled Market Salad with vinaigrette on the side"',includes:"Grilled chicken, mixed greens, apples, strawberries, blueberries, blue cheese, nuts",macroNote:"Macros include light vinaigrette. Other dressings shown below",addons:["ranch","italian","caesar","blue_cheese","avocado"]},
+  "Grilled Cool Wrap":{order:'Say: "Grilled Cool Wrap, no avocado lime ranch"',includes:"Grilled chicken, flaxseed flour flat bread, lettuce, red cabbage, carrots, Monterey Jack & cheddar",macroNote:"Skipping avocado lime ranch saves ~140 cal",addons:["ranch","honey_mustard","bbq","avocado"]},
+  "Spicy Grilled Sandwich":{order:'Say: "Spicy Grilled Chicken Sandwich, no sauce"',includes:"Spicy grilled filet, multigrain bun, lettuce, tomato",macroNote:"Spicy version of the regular grilled sandwich",addons:["honey_mustard","ranch","cheese","bacon","avocado"]},
+  "Grilled Chicken Club":{order:'Say: "Grilled Chicken Club Sandwich, no mayo"',includes:"Grilled chicken, multigrain bun, lettuce, tomato, bacon, Colby-Jack cheese",macroNote:"Already includes bacon & cheese. Skipping mayo saves ~100 cal",addons:["mayo","honey_mustard","avocado","ranch"]},
+  "Grilled Nuggets 12ct + Salad":{order:'Say: "12-count Grilled Nuggets and a Side Salad, dressing on side"',includes:"12 grilled bite-size chicken + mixed greens side salad",macroNote:"Dressing NOT included — choose below",addons:["ranch","vinaigrette","caesar","honey_mustard","blue_cheese"]},
+  // Chipotle
+  "Chicken Bowl no cheese/SC":{order:'Build a Bowl: chicken, white rice, black beans, fajita veggies, mild salsa, romaine — no cheese, no sour cream',includes:"Chicken (4oz), white rice (1 scoop), black beans, fajita veg, mild salsa, romaine lettuce",macroNote:"This is the cleanest macro split. Add-ons below show extras",addons:["cheese","sour_cream","guac","queso","pico","fajita_veg"]},
+  "Steak Bowl + fajita":{order:'Build a Bowl: steak, white rice, black beans, fajita veggies, salsa',includes:"Steak (4oz), white rice, black beans, fajita veggies, salsa",macroNote:"Skipping guac saves 230 cal. Adding it: +230 cal, +22g fat",addons:["guac","cheese","sour_cream","queso","extra_chicken"]},
+  "Chicken Salad no dressing":{order:'Say: "Salad with chicken, fajita veggies, salsa — no dressing, no cheese"',includes:"Romaine, chicken (4oz), fajita veggies, mild salsa, pico",macroNote:"No dressing included. Chipotle vinaigrette adds ~250 cal",addons:["vinaigrette","cheese","sour_cream","guac","queso"]},
+  "Barbacoa Bowl brown rice":{order:'Build a Bowl: barbacoa, brown rice, black beans, fajita veggies, salsa',includes:"Barbacoa beef, brown rice, black beans, fajita veg, salsa",macroNote:"High fiber from brown rice + beans",addons:["guac","cheese","sour_cream","queso","fajita_veg"]},
+  "Double Protein Chicken Bowl":{order:'Build a Bowl: DOUBLE chicken (2 scoops), white rice, black beans, fajita veg, salsa, romaine',includes:"8oz chicken total, rice, beans, veg, salsa, romaine",macroNote:"Best for muscle building days. Extra protein costs ~$5",addons:["guac","cheese","queso","sour_cream","fajita_veg"]},
+  "Chicken Bowl brown rice":{order:'Build a Bowl: chicken, brown rice, black beans, fajita veggies, salsa, romaine',includes:"Chicken (4oz), brown rice, black beans, fajita veg, mild salsa, romaine",macroNote:"Higher fiber than white rice version",addons:["guac","cheese","sour_cream","queso","extra_chicken"]},
+  "Steak Bowl salsa only":{order:'Build a Bowl: steak, white rice, black beans, fajita veggies, salsa only — no cheese, no sour cream',includes:"Steak, white rice, black beans, fajita veg, mild salsa",macroNote:"Clean macros — no cheese or sour cream",addons:["cheese","sour_cream","guac","queso"]},
+  "Sofritas Bowl vegan":{order:'Build a Bowl: sofritas, brown rice, black beans, fajita veggies, salsa, romaine — no cheese',includes:"Sofritas (organic tofu), brown rice, black beans, fajita veg, salsa, romaine",macroNote:"Fully vegan option — high fiber",addons:["guac","fajita_veg","pico","cheese","sour_cream"]},
+  "Chicken Salad Bowl":{order:'Say: "Salad with chicken, fajita veggies, salsa, romaine"',includes:"Romaine, chicken, fajita veggies, salsa, pico",macroNote:"Light dinner option — no rice or beans",addons:["vinaigrette","cheese","guac","queso","sour_cream"]},
+  "Barbacoa no rice extra veg":{order:'Build a Bowl: barbacoa, NO rice, extra fajita veggies, black beans, salsa, romaine',includes:"Barbacoa, extra fajita veg, black beans, salsa, romaine — no rice",macroNote:"Low-carb high-protein option",addons:["guac","cheese","queso","sour_cream","fajita_veg"]},
+  // McDonald's breakfast
+  "Egg McMuffin":{order:'Say: "Egg McMuffin"',includes:"English muffin, Canadian bacon, egg, American cheese, butter",macroNote:"Standard order — macros include all ingredients",addons:["bacon","cheese","ketchup","mayo"]},
+  "Egg White Delight":{order:'Say: "Egg White Delight McMuffin"',includes:"Whole grain muffin, egg whites, Canadian bacon, white cheddar",macroNote:"Lower fat version of regular McMuffin",addons:["bacon","cheese","avocado","mustard"]},
+  "Fruit & Maple Oatmeal":{order:'Say: "Fruit & Maple Oatmeal, no brown sugar"',includes:"Oatmeal, fresh apples, cranberry-raisin blend, cream",macroNote:"Skipping brown sugar saves ~60 cal",addons:[]},
+  "Ham Egg Biscuit":{order:'Say: "Bacon, Egg & Cheese Biscuit with ham added"',includes:"Buttermilk biscuit, ham, egg, American cheese, butter",macroNote:"Skip butter to save ~50 cal",addons:["bacon","cheese","mayo","ketchup"]},
+  "Sausage Burrito (egg only)":{order:'Say: "Sausage Burrito, egg and cheese only — no sausage"',includes:"Flour tortilla, scrambled eggs, cheese, mild salsa, onions, green peppers",macroNote:"Removing sausage cuts ~100 cal and saturated fat",addons:["cheese","sour_cream","bbq"]},
+  // Chick-fil-A breakfast
+  "Egg White Grill":{order:'Say: "Egg White Grill"',includes:"Toasted multigrain English muffin, egg whites, grilled chicken filet, American cheese",macroNote:"Standard order — best fast food breakfast for macros",addons:["bacon","cheese","honey_mustard","mayo","avocado"]},
+  "Greek Yogurt Parfait":{order:'Say: "Greek Yogurt Parfait with granola on the side"',includes:"Vanilla Greek yogurt, fresh berries, harvest nut granola",macroNote:"Light option — pair with protein for muscle gain",addons:[]},
+  "Hash Brown Bowl no cheese":{order:'Say: "Hash Brown Scramble Bowl, no cheese"',includes:"Hash browns, scrambled eggs, grilled chicken nuggets — without cheese",macroNote:"Skipping cheese saves 80 cal. Add it back: +60 cal, +5g fat",addons:["cheese","bacon","ranch","honey_mustard","avocado"]},
+  "Chicken Egg Bagel":{order:'Say: "Chicken, Egg & Cheese Bagel, no butter"',includes:"Plain bagel, grilled chicken filet, egg, American cheese",macroNote:"Skip butter saves ~50 cal",addons:["bacon","cheese","mayo","honey_mustard"]},
+  "Bacon Egg Biscuit":{order:'Say: "Bacon, Egg & Cheese Biscuit, no butter"',includes:"Buttermilk biscuit, bacon, egg, American cheese",macroNote:"Skip butter saves ~50 cal",addons:["bacon","cheese","mayo","honey_mustard"]},
+  // Chick-fil-A dinner extras
+  "Market Salad + Nuggets":{order:'Say: "Grilled Market Salad with 8 Grilled Nuggets added, vinaigrette on side"',includes:"Mixed greens, grilled chicken, apples, berries, blue cheese, nuts + 8 grilled nuggets",macroNote:"Vinaigrette on side. Other dressings shown below",addons:["ranch","vinaigrette","caesar","blue_cheese","honey_mustard","avocado"]},
+  "Cool Wrap + Fruit Cup":{order:'Say: "Grilled Cool Wrap and Small Fruit Cup, no avocado lime ranch"',includes:"Grilled chicken flatbread wrap + seasonal fruit cup",macroNote:"Skipping wrap sauce saves ~140 cal",addons:["ranch","honey_mustard","bbq","avocado","cheese"]},
+  "Sandwich + Side Salad":{order:'Say: "Grilled Chicken Sandwich and Side Salad, dressing on side"',includes:"Grilled chicken sandwich + side salad with mixed greens",macroNote:"Dressing NOT included — choose below",addons:["ranch","vinaigrette","caesar","honey_mustard","blue_cheese"]},
+  // Subway breakfast
+  "Egg & Cheese Wrap":{order:'Say: "Egg & Cheese Wrap with double egg whites"',includes:"Flatbread wrap, egg patty, American cheese — extra egg whites added",macroNote:"Adding extra egg whites: +25 cal, +5g protein",addons:["bacon","cheese","mayo","mustard","avocado"]},
+  "Ham Egg & Cheese":{order:'Say: "Black Forest Ham, Egg & Cheese on whole wheat 6-inch"',includes:"Whole wheat bread, Black Forest ham, egg, American cheese",macroNote:"Free veggies (lettuce, tomato, onion, etc.) always included",addons:["bacon","cheese","mayo","mustard","avocado"]},
+  "Bacon Egg no mayo":{order:'Say: "Bacon, Egg & Cheese on whole wheat, no mayo"',includes:"Whole wheat bread, bacon, egg, American cheese + free veggies",macroNote:"Skip mayo saves ~100 cal",addons:["mayo","cheese","mustard","ranch","avocado"]},
+  "Steak Egg & Cheese":{order:'Say: "Steak, Egg & Cheese on whole wheat 6-inch"',includes:"Whole wheat, steak, egg, American cheese + free veggies",macroNote:"Highest protein breakfast sub",addons:["bacon","cheese","mayo","mustard"]},
+  "Veggie Egg Wrap":{order:'Say: "Veggie Egg Wrap, double egg whites"',includes:"Flatbread wrap, double egg whites, all veggies (spinach, tomato, peppers, onions)",macroNote:"Plant-forward option — extra egg whites for protein",addons:["cheese","avocado","mayo","mustard","bacon"]},
+  // Subway lunch/dinner missing
+  "Tuna no mayo mustard":{order:'Say: "Tuna on whole wheat, no mayo, add mustard"',includes:"Whole wheat, tuna mix (no mayo), mustard + free veggies",macroNote:"Skipping mayo saves ~200 cal vs regular tuna sub",addons:["mayo","cheese","ranch","italian","avocado"]},
+  "Turkey & Ham no mayo":{order:'Say: "Turkey & Ham on whole wheat, no mayo"',includes:"Whole wheat, turkey breast, Black Forest ham + free veggies",macroNote:"Dual protein, very lean",addons:["mayo","cheese","mustard","italian","avocado"]},
+  "Steak & Cheese no sauce":{order:'Say: "Steak & Cheese on whole wheat, no sauce"',includes:"Whole wheat, steak, American cheese + free veggies",macroNote:"Skipping signature sauce saves ~80 cal",addons:["mayo","cheese","mustard","ranch","avocado"]},
+  "Turkey & Ham":{order:'Say: "Turkey & Ham on whole wheat, no mayo"',includes:"Whole wheat, turkey breast, ham + free veggies",macroNote:"Light and lean dinner option",addons:["mayo","cheese","mustard","italian","avocado"]},
+  "Veggie + double chicken":{order:'Say: "Veggie Delite on whole wheat, add double chicken"',includes:"Whole wheat, all veggies + 2 servings of grilled chicken",macroNote:"Add avocado for healthy fats (+60 cal, +6g fat)",addons:["avocado","cheese","mayo","ranch","italian"]},
+  "Grilled Chicken Salad":{order:'Say: "Grilled Chicken Salad, dressing on the side"',includes:"Mixed greens, grilled chicken, all veggies",macroNote:"Dressing NOT included — choose below",addons:["ranch","italian","vinaigrette","caesar","avocado"]},
+  // Wendy's breakfast
+  "Egg & Swiss Croissant":{order:'Say: "Egg & Swiss Croissant"',includes:"Buttery croissant, egg, Swiss cheese",macroNote:"Better macros than sausage biscuit options",addons:["bacon","cheese","mayo","ketchup"]},
+  "Maple Bacon Chicken":{order:'Say: "Maple Bacon Chicken Croissant, no mayo"',includes:"Buttery croissant, chicken filet, bacon, swiss, maple butter sauce",macroNote:"Skipping mayo saves ~100 cal",addons:["mayo","cheese","honey_mustard","ranch"]},
+  "Oatmeal Bar":{order:'Say: "Oatmeal Bar"',includes:"Whole grain oats, dried fruit, nuts (single bar)",macroNote:"Light portable option — pair with protein source",addons:[]},
+  "Jr Bacon Cheeseburger":{order:'Say: "Junior Bacon Cheeseburger"',includes:"Bun, beef patty, bacon, American cheese, lettuce, tomato, mayo",macroNote:"Standard order. Skip mayo to save ~80 cal",addons:["mayo","bacon","cheese","ketchup","ranch","bbq"]},
+  "Egg Cheese Biscuit":{order:'Say: "Egg & Cheese Biscuit, no butter"',includes:"Buttermilk biscuit, egg, American cheese",macroNote:"Skip butter saves ~50 cal",addons:["bacon","cheese","mayo","ketchup"]},
+  // Wendy's lunch/dinner
+  "Apple Pecan Salad half":{order:'Say: "Half Apple Pecan Salad, dressing on the side"',includes:"Half portion: mixed greens, grilled chicken, apples, pecans, blue cheese",macroNote:"Dressing not included. Pomegranate vinaigrette adds ~280 cal",addons:["ranch","vinaigrette","caesar","blue_cheese","italian"]},
+  "Junior Hamburger no mayo":{order:'Say: "Junior Hamburger, no mayo"',includes:"Bun, beef patty, ketchup, mustard, pickles, onions",macroNote:"Lowest calorie burger on menu",addons:["mayo","cheese","bacon","ranch","bbq"]},
+  "Grilled Chicken Wrap":{order:'Say: "Grilled Chicken Wrap, no ranch"',includes:"Tortilla wrap, grilled chicken, lettuce, cheese",macroNote:"Skipping ranch saves ~130 cal",addons:["ranch","honey_mustard","bbq","cheese","avocado"]},
+  "Baked Potato + Chili":{order:'Say: "Plain Baked Potato and Small Chili"',includes:"Whole baked potato (no toppings) + small chili",macroNote:"Add toppings below to make it a full meal",addons:["cheese","sour_cream","bacon"]},
+  "Grilled Chicken + Salad":{order:'Say: "Grilled Chicken Sandwich and Side Salad, dressing on side"',includes:"Grilled chicken sandwich + side salad",macroNote:"Dressing NOT included",addons:["ranch","vinaigrette","caesar","honey_mustard","italian"]},
+  "Apple Salad + Chicken":{order:'Say: "Apple Pecan Salad with extra chicken, dressing on side"',includes:"Mixed greens, grilled chicken, apples, pecans, blue cheese, extra chicken",macroNote:"Dressing NOT included",addons:["ranch","vinaigrette","blue_cheese","caesar"]},
+  "Dave's Single no mayo":{order:`Say: "Dave's Single, no mayo"`,includes:"Brioche bun, 1/4 lb beef patty, American cheese, lettuce, tomato, pickle, onion, ketchup, mustard",macroNote:"Skip mayo to save ~100 cal",addons:["mayo","bacon","cheese","ranch","bbq"]},
+  // Taco Bell breakfast
+  "Egg & Cheese Taco x2":{order:'Say: "Two Egg & Cheese Breakfast Tacos"',includes:"Soft flour taco shell, scrambled eggs, three-cheese blend (×2 tacos)",macroNote:"Get 2 for adequate breakfast protein",addons:["cheese","sour_cream","bacon","bbq"]},
+  "Grande Scrambler Fresco":{order:'Say: "Grande Toasted Breakfast Burrito, Fresco style"',includes:"Tortilla, eggs, cheese, hash browns + Fresco (salsa replaces sour cream)",macroNote:"Fresco style saves ~100 cal",addons:["bacon","cheese","sour_cream","mayo"]},
+  "Breakfast Crunchwrap":{order:'Say: "Breakfast Crunchwrap, no sausage, extra egg"',includes:"Tortilla, egg, hash brown, cheese (no sausage), extra egg",macroNote:"Replacing sausage with extra egg = more protein, less fat",addons:["bacon","cheese","sour_cream","bbq"]},
+  "Mini Skillet Bowl":{order:'Say: "Mini Skillet Bowl"',includes:"Eggs, potatoes, cheese, salsa, small portion",macroNote:"Lowest calorie breakfast option",addons:["cheese","sour_cream","bacon","bbq"]},
+  "Cheesy Burrito Fresco":{order:'Say: "Cheesy Toasted Breakfast Burrito, Fresco style"',includes:"Tortilla, eggs, cheese, bacon + Fresco (salsa, no creamy)",macroNote:"Fresco style cuts the cheese sauce calories",addons:["bacon","cheese","sour_cream","bbq"]},
+  // Taco Bell lunch/dinner
+  "Power Bowl Chicken Fresco":{order:'Say: "Power Menu Bowl with chicken, Fresco style"',includes:"Rice, black beans, chicken, romaine, tomatoes, guacamole, salsa (Fresco = no sour cream/cheese)",macroNote:"Fresco cuts cheese & sour cream calories",addons:["cheese","sour_cream","guac","bacon","ranch"]},
+  "Grilled Chicken Burrito Fresco":{order:'Say: "Grilled Chicken Burrito, Fresco style"',includes:"Tortilla, grilled chicken, rice, beans + Fresco (salsa)",macroNote:"Solid macros — Fresco swap is automatic",addons:["cheese","sour_cream","guac","ranch","bbq"]},
+  "Chicken Soft Tacos x2 Fresco":{order:'Say: "Two Chicken Soft Tacos, Fresco style"',includes:"Soft tortilla shells, shredded chicken, lettuce + Fresco salsa (×2 tacos)",macroNote:"Fresco replaces cheese with salsa",addons:["cheese","sour_cream","guac","bacon"]},
+  "Cantina Chicken Bowl":{order:'Say: "Cantina Chicken Bowl"',includes:"Rice, black beans, grilled chicken, lettuce, pico, avocado ranch, chipotle sauce",macroNote:"Highest protein bowl. Customize sauces below",addons:["cheese","sour_cream","guac","ranch","bbq"]},
+  "Veggie Power Bowl Fresco":{order:'Say: "Veggie Power Menu Bowl, Fresco style"',includes:"Rice, beans, lettuce, tomato, guacamole, salsa (Fresco)",macroNote:"Best plant-based Taco Bell option",addons:["cheese","sour_cream","guac","ranch"]},
+  "Chicken Power Bowl Fresco":{order:'Say: "Chicken Power Bowl, Fresco style"',includes:"Rice, beans, chicken, lettuce, salsa (no cheese, no sour cream)",macroNote:"Clean macros version",addons:["cheese","sour_cream","guac","ranch"]},
+  "Grilled Chicken Burrito":{order:'Say: "Grilled Chicken Burrito"',includes:"Tortilla, grilled chicken, rice, beans, cheese, chipotle sauce",macroNote:"Light dinner option",addons:["cheese","sour_cream","guac","ranch"]},
+  "Steak Soft Tacos x2":{order:'Say: "Two Steak Soft Tacos"',includes:"Soft tortilla shells, grilled steak, lettuce, cheese, sour cream (×2)",macroNote:"Order Fresco to cut ~80 cal",addons:["cheese","sour_cream","guac","bacon"]},
+  "Chicken + Bean Burrito":{order:'Say: "Chicken Burrito with extra beans, Fresco style"',includes:"Tortilla, chicken, rice, beans, cheese, salsa (Fresco)",macroNote:"Good fiber + protein combo",addons:["cheese","sour_cream","guac","ranch"]},
+  // Panera breakfast
+  "Steel Cut Oatmeal":{order:'Say: "Steel Cut Oatmeal with mixed berries"',includes:"Steel cut oats, mixed berries, agave syrup",macroNote:"Clean breakfast base — pair with protein source",addons:[]},
+  "Avocado Egg Spinach":{order:'Say: "Avocado, Egg White & Spinach Power Sandwich"',includes:"Sprouted grain bagel flat, avocado, egg whites, spinach, vine-ripened tomatoes",macroNote:"High protein, high fiber morning meal",addons:["cheese","bacon","avocado","mayo"]},
+  "Egg Cheese half":{order:'Say: "Bacon, Egg & Cheese on Brioche, half order"',includes:"Half brioche, bacon, egg, American cheese, salt, pepper",macroNote:"Half portion — reasonable macros",addons:["bacon","cheese","mayo","avocado"]},
+  "Fruit + Egg Bites":{order:'Say: "Seasonal Fruit Cup and Egg Bites"',includes:"Mixed seasonal fruit + bacon & cheddar egg bites",macroNote:"Light, balanced morning meal",addons:[]},
+  "Turkey Pesto half":{order:'Say: "Turkey & Basil Pesto Sandwich, half"',includes:"Half ciabatta, turkey, basil pesto, mozzarella, tomato",macroNote:"Lean protein, good fats from pesto",addons:["mayo","cheese","avocado","mustard"]},
+  // Panera lunch
+  "Turkey Avocado BLT half":{order:'Say: "Turkey Avocado BLT, half"',includes:"Half ciabatta, turkey, avocado, bacon, lettuce, tomato, mayo",macroNote:"Pair with Ten Vegetable Soup for full Pick Two",addons:["mayo","cheese","bacon","avocado","mustard"]},
+  "Greek Salad + Chicken":{order:'Say: "Greek Salad with chicken added, dressing on the side"',includes:"Romaine, tomatoes, cucumbers, red onion, kalamata olives, feta + grilled chicken",macroNote:"Healthy fats from olives & feta",addons:["italian","vinaigrette","caesar","ranch","avocado"]},
+  "Ten Vegetable Soup":{order:'Say: "Ten Vegetable Soup, bowl"',includes:"Tomato broth with 10 vegetables, light on starches",macroNote:"Low cal, high fiber. Great Pick Two side",addons:[]},
+  "Green Goddess Cobb":{order:'Say: "Green Goddess Cobb with chicken, dressing on side"',includes:"Romaine + kale, chicken, bacon, eggs, avocado, tomato, gorgonzola",macroNote:"Dressing not included. Green Goddess adds ~190 cal",addons:["ranch","vinaigrette","caesar","blue_cheese","italian","avocado"]},
+  "Chicken Noodle + Half Turkey":{order:'Say: "Pick Two: Chicken Noodle Soup and Half Turkey Sandwich"',includes:"Chicken noodle soup + half turkey sandwich (whole grain)",macroNote:"Classic balanced Pick Two combo",addons:["mayo","cheese","mustard","avocado"]},
+  // Panera dinner
+  "Green Goddess Cobb Salad":{order:'Say: "Green Goddess Cobb Salad with chicken"',includes:"Romaine, kale, chicken, bacon, eggs, avocado, tomato, gorgonzola, green goddess dressing",macroNote:"Dressing already included",addons:["bacon","avocado","blue_cheese","ranch"]},
+  "Herb Chicken + Side Salad":{order:'Say: "Mediterranean Herb Chicken Sandwich and Side Salad"',includes:"Herb chicken sandwich + side salad with mixed greens",macroNote:"Dressing on the side — choose below",addons:["ranch","vinaigrette","caesar","italian","avocado"]},
+  "Greek Salad + Chicken + Soup":{order:'Say: "Pick Two: Greek Salad with chicken and Ten Vegetable Soup"',includes:"Greek salad with chicken + 10 vegetable soup",macroNote:"Full dinner Pick Two",addons:["italian","vinaigrette","caesar","avocado"]},
+  "Turkey Half + Greek Salad":{order:'Say: "Pick Two: Half Turkey Sandwich and Greek Salad"',includes:"Half turkey sandwich + Greek salad",macroNote:"Balanced Pick Two dinner",addons:["mayo","mustard","italian","vinaigrette"]},
+  "Broccoli Cheddar + Turkey":{order:'Say: "Pick Two: Broccoli Cheddar Soup and Half Turkey Sandwich"',includes:"Broccoli cheddar soup + half turkey sandwich",macroNote:"Treat meal — higher cal but satisfying",addons:["bacon","cheese","mayo","avocado"]},
+  // Starbucks breakfast
+  "Sous Vide Egg Bites":{order:'Say: "Bacon & Gruyère Sous Vide Egg Bites"',includes:"Cage-free eggs, applewood smoked bacon, Monterey Jack, Gruyère, aged cheddar",macroNote:"High protein, keto-friendly",addons:[]},
+  "Spinach Feta Wrap":{order:'Say: "Spinach, Feta & Egg White Wrap"',includes:"Whole wheat wrap, egg whites, spinach, feta, sun-dried tomato cream cheese",macroNote:"Best Starbucks breakfast for macros",addons:[]},
+  "Egg Cheese Protein Box":{order:'Say: "Eggs & Cheese Protein Box"',includes:"Hard-boiled eggs, white cheddar cheese, apples, multigrain muesli bread, peanut butter",macroNote:"Balanced on-the-go option",addons:[]},
+  "Turkey Bacon Egg White":{order:'Say: "Turkey Bacon, Cheddar & Egg White Sandwich"',includes:"English muffin, egg whites, turkey bacon, reduced fat cheddar",macroNote:"Lightest protein option",addons:[]},
+  "Kale Portabella Bites":{order:'Say: "Kale & Portabella Mushroom Sous Vide Egg Bites"',includes:"Egg whites, kale, portabella mushrooms, Monterey Jack, fontina",macroNote:"Plant-forward low-carb option",addons:[]},
+  // Starbucks lunch
+  "Chicken Quinoa Bowl":{order:'Say: "Chicken & Quinoa Protein Bowl with Black Beans & Greens"',includes:"Cilantro-lime chicken, quinoa, black beans, greens, salsa, vinaigrette",macroNote:"Best Starbucks meal option",addons:[]},
+  "Kale Farro Salad":{order:'Say: "Kale & Mushroom Farro Salad"',includes:"Farro, kale, mushrooms, butternut squash, dried cranberries, balsamic",macroNote:"High fiber, plant-based",addons:[]},
+  "Turkey Pesto Sandwich":{order:'Say: "Turkey & Basil Pesto Sandwich"',includes:"Ciabatta, turkey, fresh mozzarella, basil pesto, tomato, peppers",macroNote:"Good macros for on-the-go",addons:[]},
+  "Chicken Hummus Box":{order:'Say: "Grilled Chicken & Hummus Protein Box"',includes:"Grilled chicken strips, hummus, cucumber, carrots, multigrain crackers, pickled cabbage",macroNote:"Solid on-the-go lunch option",addons:[]},
+  "Egg Bites x2":{order:'Say: "Two orders of Bacon & Gruyère Egg Bites"',includes:"2 servings of bacon & gruyere egg bites",macroNote:"High protein, very low carb",addons:[]},
+  // Starbucks dinner
+  "Cheese Fruit Protein Box":{order:'Say: "Cheese, Fruit & Protein Box"',includes:"Cheese trio, apples, grapes, multigrain muesli bread, peanut butter",macroNote:"Light evening option",addons:[]},
+  "Chicken Bowl + Cold Brew":{order:'Say: "Chicken & Quinoa Protein Bowl with a Cold Brew, black"',includes:"Chicken quinoa protein bowl + unsweetened cold brew coffee",macroNote:"Full meal + zero-cal coffee",addons:[]},
+  "Egg Bites + Protein Box":{order:'Say: "Bacon & Gruyère Egg Bites and Eggs & Cheese Protein Box"',includes:"Egg bites + protein box combo",macroNote:"Maximum protein dinner option",addons:[]},
+  // Panda Express
+  "Grilled Teriyaki + rice":{order:'Say: "Grilled Teriyaki Chicken with Steamed Rice"',includes:"Grilled teriyaki chicken breast over steamed white rice",macroNote:"Best macros on the menu",addons:[]},
+  "String Bean Chicken":{order:'Say: "String Bean Chicken Breast with Steamed Rice"',includes:"Chicken breast with string beans in a savory sauce + steamed rice",macroNote:"High protein, lower fat option",addons:[]},
+  "Broccoli Beef + veggies":{order:'Say: "Broccoli Beef with Mixed Vegetables"',includes:"Sliced beef with broccoli in a brown sauce + mixed veggies (no rice)",macroNote:"Lower calorie, no rice version",addons:[]},
+  "Super Greens + Teriyaki":{order:'Say: "Grilled Teriyaki Chicken with Super Greens"',includes:"Grilled teriyaki chicken + super greens (broccoli, kale, cabbage)",macroNote:"Low carb, high protein option",addons:[]},
+  "Mushroom Chicken brown rice":{order:'Say: "Mushroom Chicken with Brown Rice"',includes:"Diced chicken with mushrooms and zucchini in light brown sauce + brown rice",macroNote:"Lighter option, good fiber from brown rice",addons:[]},
+  "Teriyaki + chow mein":{order:'Say: "Grilled Teriyaki Chicken with Chow Mein"',includes:"Grilled teriyaki chicken + chow mein noodles",macroNote:"Solid protein, chow mein adds carbs",addons:[]},
+  "Shanghai Angus Steak":{order:'Say: "Shanghai Angus Steak with Brown Rice"',includes:"Wok-seared Angus steak with vegetables + brown rice",macroNote:"Highest protein option",addons:[]},
+  "Teriyaki + steamed veggies":{order:'Say: "Grilled Teriyaki Chicken with Steamed Vegetables"',includes:"Grilled teriyaki chicken + steamed mixed veggies (no rice)",macroNote:"Cleanest dinner option",addons:[]},
+  "String Bean + Super Greens":{order:'Say: "String Bean Chicken with Super Greens"',includes:"String bean chicken + super greens (no rice)",macroNote:"Low cal, high protein",addons:[]},
+  "Kung Pao Shrimp + rice":{order:'Say: "Kung Pao Shrimp with Brown Rice"',includes:"Shrimp with peanuts, bell peppers, zucchini in spicy sauce + brown rice",macroNote:"Seafood option with healthy fats",addons:[]},
+  // In-N-Out
+  "Hamburger Protein Style":{order:'Say: "Hamburger Protein Style"',includes:"Beef patty wrapped in lettuce (no bun), tomato, onion, spread, pickles",macroNote:"Lettuce wrap saves ~200 cal vs bun",addons:["cheese","mayo","mustard","ketchup"]},
+  "Double-Double Protein Style":{order:'Say: "Double-Double Protein Style"',includes:"2 beef patties, 2 cheese, lettuce wrap (no bun), tomato, onion, spread",macroNote:"High protein, very low carb",addons:["mayo","mustard","ketchup"]},
+  "Cheeseburger no spread":{order:'Say: "Cheeseburger, no spread"',includes:"Bun, beef patty, cheese, lettuce, tomato, onion, pickles — no spread (sauce)",macroNote:"Skipping spread saves ~80 cal",addons:["mayo","mustard","ketchup","cheese"]},
+  "Animal Style no spread":{order:'Say: "Cheeseburger Animal Style, no spread"',includes:"Bun, mustard-fried beef patty, cheese, pickle, grilled onion, lettuce, tomato (no spread)",macroNote:"Mustard fried gives flavor without extra cal",addons:["mayo","cheese","mustard","ketchup"]},
+  "3x3 Protein Style":{order:'Say: "3x3 Protein Style" (secret menu)',includes:"3 beef patties, 3 cheese, lettuce wrap, tomato, onion, spread",macroNote:"Ultra-high protein. Secret menu item",addons:["mayo","mustard","ketchup"]},
+  "Hamburger + Side Salad":{order:'Say: "Hamburger and a side salad" (some locations carry pre-packed salads)',includes:"Standard hamburger + side salad if available",macroNote:"Balanced dinner — confirm location has salads",addons:["mayo","mustard","ketchup","ranch","italian"]},
+  "Double-Double + Salad":{order:'Say: "Double-Double Protein Style and a side salad"',includes:"Double-Double protein style + side salad",macroNote:"High protein full dinner",addons:["mayo","ranch","italian","mustard"]},
+  "Cheeseburger Protein Style":{order:'Say: "Cheeseburger Protein Style"',includes:"Beef patty, cheese, lettuce wrap (no bun), tomato, onion, spread",macroNote:"Low carb cheese option",addons:["mayo","mustard","ketchup"]},
+  "Grilled Cheese Protein Style":{order:'Say: "Grilled Cheese Protein Style"',includes:"2 slices melted American cheese, lettuce wrap (no bun), tomato, onion, spread",macroNote:"Vegetarian low-carb option",addons:["mayo","mustard","ketchup"]},
+  // Raising Cane's
+  "Box Combo no sauce coleslaw":{order:'Say: "Box Combo, no sauce, swap fries for extra coleslaw"',includes:`4 chicken fingers, Texas toast, coleslaw (×2), drink — no Cane's sauce`,macroNote:"Best combo. Swapping fries saves ~300 cal",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
+  "3 Finger no sauce":{order:'Say: "3 Finger Combo, no sauce, swap fries for coleslaw"',includes:"3 chicken fingers, Texas toast, coleslaw, drink",macroNote:"Lower cal combo option",addons:["honey_mustard","ranch","bbq","buffalo"]},
+  "Sandwich no sauce":{order:`Say: "Chicken Sandwich, no Cane's sauce"`,includes:"Bun, 3 chicken fingers, lettuce, pickles",macroNote:"Skipping Cane's sauce saves ~150 cal",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
+  "3 Tenders only":{order:'Say: "3 Chicken Fingers only" (a la carte)',includes:"3 chicken fingers, no sides or sauce",macroNote:"Pure protein — pair with a side salad",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
+  "Caniac no sauce":{order:'Say: "Caniac Combo, no sauce, swap fries for coleslaw"',includes:"6 chicken fingers, Texas toast, coleslaw (×2), drink",macroNote:"Highest protein combo",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
+  "Box no sauce coleslaw":{order:'Say: "Box Combo, no sauce, double coleslaw, no fries"',includes:"4 chicken fingers, Texas toast, 2x coleslaw, drink",macroNote:"Smart swap for cleaner macros",addons:["honey_mustard","ranch","bbq","buffalo"]},
+  "3 Tenders + Side Salad":{order:'Say: "3 Chicken Fingers and a Side Salad" (if available)',includes:"3 chicken fingers + side salad",macroNote:"Balanced protein dinner",addons:["honey_mustard","ranch","vinaigrette","blue_cheese","caesar"]},
+  "Sandwich + Coleslaw":{order:'Say: "Chicken Sandwich and a side of Coleslaw, no sauce"',includes:"Chicken sandwich + coleslaw",macroNote:"Filling without sauce calories",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
+  "4 Tenders no sauce":{order:'Say: "4 Chicken Fingers only" (a la carte)',includes:"4 chicken fingers, no sides or sauce",macroNote:"Maximum protein, minimum carbs",addons:["honey_mustard","ranch","bbq","buffalo","cheese"]},
+  // Sweetgreen
+  "Harvest Bowl":{order:'Say: "Harvest Bowl as-is"',includes:"Roasted chicken, roasted sweet potato, apples, goat cheese, toasted almonds, wild rice, balsamic vinaigrette, kale + arugula",macroNote:"Standard order — already balanced",addons:["avocado","vinaigrette","caesar"]},
+  "Kale Caesar + Chicken half":{order:'Say: "Half Kale Caesar with roasted chicken"',includes:"Half portion: kale, romaine, parmesan crisps, breadcrumbs, roasted chicken, caesar dressing",macroNote:"Half portion for lighter meal",addons:["caesar","ranch","avocado"]},
+  "Hot Honey Chicken half":{order:'Say: "Half Hot Honey Chicken Bowl"',includes:"Half portion: hot honey chicken, roasted sweet potato, wild rice, kale, almonds",macroNote:"Half portion option",addons:["avocado","vinaigrette"]},
+  "Guacamole Greens Bowl":{order:'Say: "Guacamole Greens as-is"',includes:"Roasted chicken, organic mesclun, fresh corn, cucumber, red onion, tomatoes, lime cilantro jalapeño vinaigrette, avocado",macroNote:"Healthy fats from avocado included",addons:["avocado","vinaigrette","ranch"]},
+  "Custom Protein Greens":{order:'Say: "Build your own — mesclun greens, double protein, your choice of toppings"',includes:"Build-your-own salad with extra protein",macroNote:"Customize based on your goals",addons:["avocado","vinaigrette","caesar","ranch","cheese"]},
+  "Hot Honey Chicken Bowl":{order:'Say: "Hot Honey Chicken Bowl as-is"',includes:"Crispy hot honey chicken, roasted sweet potato, wild rice, kale, sliced almonds, hot honey, lime cilantro jalapeño vinaigrette",macroNote:"Highest protein bowl. Order as-is",addons:["avocado","vinaigrette"]},
+  "Kale Caesar + Chicken":{order:'Say: "Kale Caesar with roasted chicken"',includes:"Kale, romaine, parmesan crisps, breadcrumbs, roasted chicken, caesar dressing",macroNote:"Classic high protein order",addons:["caesar","ranch","avocado"]},
+  "Shroomami Bowl":{order:'Say: "Shroomami Bowl as-is"',includes:"Roasted portobello, tofu, raw beets, sprouts, cucumber, basil, warm wild rice, kale, miso sesame ginger dressing",macroNote:"Plant-based, high fiber",addons:["avocado","vinaigrette"]},
+  "Guacamole Greens":{order:'Say: "Guacamole Greens as-is"',includes:"Same as Guacamole Greens Bowl",macroNote:"Healthy fats from avocado",addons:["avocado","vinaigrette","ranch"]},
+  "Garden Cobb + Chicken":{order:'Say: "Garden Cobb Salad with roasted chicken"',includes:"Roasted chicken, mesclun, blue cheese, bacon, hard boiled egg, tomato, avocado, balsamic",macroNote:"Protein-rich, light on carbs",addons:["blue_cheese","ranch","vinaigrette","caesar","bacon"]},
+  "Grains Greens + Chicken":{order:'Say: "Build your own — greens + wild rice + roasted chicken"',includes:"Build-your-own with grains, greens, and chicken",macroNote:"Balanced macros — choose dressing below",addons:["vinaigrette","caesar","ranch","avocado"]},
+  "Kale Caesar + Salmon":{order:'Say: "Kale Caesar with blackened salmon" (when available)',includes:"Kale, romaine, parmesan, breadcrumbs, blackened salmon, caesar dressing",macroNote:"High protein + omega-3",addons:["caesar","avocado","ranch"]},
+  // Five Guys
+  "Little Hamburger no bun":{order:'Say: "Little Hamburger, no bun" (lettuce wrap if available)',includes:"Beef patty (no bun), free toppings of choice (lettuce, tomato, onion, pickle, etc.)",macroNote:"Lowest calorie option. All toppings are free",addons:["mayo","ketchup","mustard","cheese","bacon"]},
+  "Little Bacon Burger":{order:'Say: "Little Bacon Burger"',includes:"Bun, beef patty, 2 strips bacon + free toppings",macroNote:"Better macro split with bacon protein",addons:["mayo","cheese","ketchup","mustard","bbq"]},
+  "Little Cheeseburger":{order:'Say: "Little Cheeseburger"',includes:"Bun, beef patty, American cheese + free toppings of choice",macroNote:"Reasonable macros for fast food",addons:["mayo","bacon","ketchup","mustard","bbq"]},
+  "Little Bacon Cheese no bun":{order:'Say: "Little Bacon Cheeseburger, no bun" (lettuce wrap)',includes:"Beef patty, bacon, cheese (no bun) + free toppings",macroNote:"High protein, very low carb",addons:["mayo","ketchup","mustard","ranch"]},
+  "Veggie Sandwich":{order:'Say: "Veggie Sandwich" + your toppings of choice',includes:"Bun + all free veggie toppings (lettuce, tomato, onion, pickle, peppers, mushrooms, jalapeños)",macroNote:"Plant-based option — add cheese for protein",addons:["cheese","mayo","mustard","avocado"]},
+  "Little Hamburger lettuce":{order:'Say: "Little Hamburger in a lettuce wrap"',includes:"Beef patty wrapped in lettuce + free toppings of choice",macroNote:"Lowest cal, low carb option",addons:["mayo","ketchup","mustard","cheese","bacon"]},
+  "Little Bacon + Salad":{order:'Say: "Little Bacon Burger" (eat as is, no fries)',includes:"Bun, beef patty, bacon + free toppings",macroNote:"Balanced when skipping fries",addons:["mayo","cheese","mustard","ranch","bbq"]},
+  "Little Bacon Cheese":{order:'Say: "Little Bacon Cheeseburger"',includes:"Bun, beef patty, bacon, cheese + free toppings",macroNote:"Treat burger — high protein",addons:["mayo","mustard","ketchup","ranch","bbq"]},
+  "Little Hamburger x2 no bun":{order:'Say: "Two Little Hamburgers, no buns" (eat protein style)',includes:"2 beef patties (no buns) + free toppings",macroNote:"Double protein, very low carb",addons:["mayo","ketchup","mustard","cheese","bacon"]},
+  // Jimmy John's
+  "Turkey Tom Unwich":{order:'Say: "Turkey Tom Unwich"',includes:"Lettuce wrap (no bread), turkey, lettuce, tomato, mayo",macroNote:"Skipping mayo saves ~100 cal",addons:["mayo","cheese","mustard","ranch","avocado"]},
+  "Slim Turkey WW":{order:'Say: "Slim Turkey on Wheat" (no veggies/mayo by default)',includes:"Whole wheat bread, turkey breast only",macroNote:"Plain turkey sub — low fat, decent protein",addons:["mayo","cheese","mustard","avocado","bacon"]},
+  "Club Tuna Unwich":{order:'Say: "Club Tuna Unwich"',includes:"Lettuce wrap, tuna salad, cucumber, lettuce, tomato",macroNote:"Omega-3 source, very low carb",addons:["mayo","cheese","mustard","ranch","avocado"]},
+  "Big John Unwich":{order:'Say: "Big John Unwich, no mayo"',includes:"Lettuce wrap, roast beef, lettuce, tomato",macroNote:"Roast beef = higher protein",addons:["mayo","cheese","mustard","ranch","avocado"]},
+  "Bootlegger Club Unwich":{order:'Say: "Bootlegger Club Unwich"',includes:"Lettuce wrap, roast beef, turkey, lettuce, tomato, mayo",macroNote:"Double protein dinner — turkey + beef",addons:["mayo","cheese","mustard","ranch","avocado","bacon"]},
+  "Billy Club Unwich":{order:'Say: "Billy Club Unwich"',includes:"Lettuce wrap, roast beef, ham, provolone, lettuce, tomato, mayo",macroNote:"High protein dinner with cheese included",addons:["mayo","cheese","mustard","ranch","avocado"]},
+  "Italian Night Club half":{order:'Say: "Half Italian Night Club, no mayo"',includes:"Half sub: salami, capicola, ham, provolone, lettuce, tomato, onion, oil & vinegar, oregano",macroNote:"Half portion plenty for dinner",addons:["mayo","cheese","mustard","italian","avocado"]},
+  "Country Club Unwich":{order:'Say: "Country Club Unwich, no mayo"',includes:"Lettuce wrap, turkey, ham, provolone, cucumber, lettuce, tomato",macroNote:"Light and lean dinner option",addons:["mayo","cheese","mustard","ranch","avocado"]},
+  "Slim Tuna WW no mayo":{order:`Say: "Slim Tuna on Wheat, no mayo" (won't be tuna salad, just plain)`,includes:"Whole wheat bread, tuna (note: standard tuna comes with mayo mixed in)",macroNote:"Omega-3, very low fat sub",addons:["mayo","cheese","mustard","avocado"]},
+};
+
+const FF=[
+  {chain:"McDonald's",emoji:"🍟",color:"#FFC72C",tip:"Grilled beats fried. No mayo saves 100 kcal.",meals:{breakfast:[{n:"Egg McMuffin",cal:300,p:18,c:30,f:12,note:"Classic high-protein"},{n:"Egg White Delight",cal:250,p:18,c:29,f:8,note:"Lower fat"},{n:"Fruit & Maple Oatmeal",cal:290,p:6,c:58,f:4,note:"Skip brown sugar"},{n:"Ham Egg Biscuit",cal:450,p:21,c:48,f:18,note:"More protein"},{n:"Sausage Burrito (egg only)",cal:300,p:12,c:26,f:16,note:"Egg & cheese only"}],lunch:[{n:"Grilled Chicken (no mayo)",cal:380,p:37,c:44,f:6,note:"Best option"},{n:"McDouble",cal:390,p:22,c:34,f:18,note:"Protein-dense"},{n:"Side Salad + Chicken",cal:260,p:30,c:14,f:8,note:"Dressing on side"},{n:"Southwest Salad",cal:350,p:35,c:27,f:11,note:"Dressing on side"},{n:"Artisan Grilled Chicken",cal:380,p:37,c:44,f:6,note:"Solid macros"}],dinner:[{n:"Grilled Chicken Sandwich",cal:380,p:37,c:44,f:6,note:"Best choice"},{n:"McDouble no mayo",cal:390,p:22,c:34,f:18,note:"Protein-controlled"},{n:"Filet-O-Fish no tartar",cal:300,p:15,c:38,f:11,note:"Omega-3"},{n:"Salad + 2x Chicken",cal:310,p:38,c:14,f:10,note:"Double protein"},{n:"Big Mac no sauce",cal:490,p:25,c:46,f:23,note:"Skip sauce"}]}},
+  {chain:"Chick-fil-A",emoji:"🐔",color:"#E51636",tip:"Grilled nuggets = highest protein per cal in fast food.",meals:{breakfast:[{n:"Egg White Grill",cal:290,p:26,c:30,f:7,note:"Best FF breakfast"},{n:"Greek Yogurt Parfait",cal:230,p:13,c:31,f:6,note:"Light"},{n:"Hash Brown Bowl no cheese",cal:450,p:22,c:42,f:19,note:"Saves 80 kcal"},{n:"Chicken Egg Bagel",cal:480,p:29,c:48,f:17,note:"Skip butter"},{n:"Bacon Egg Biscuit",cal:450,p:22,c:36,f:23,note:"Skip butter"}],lunch:[{n:"Grilled Chicken Sandwich no sauce",cal:320,p:29,c:42,f:6,note:"Best macros"},{n:"Grilled Nuggets 8ct",cal:140,p:25,c:3,f:3.5,note:"Top protein/cal"},{n:"Grilled Market Salad",cal:330,p:27,c:26,f:13,note:"Vinaigrette on side"},{n:"Grilled Cool Wrap",cal:350,p:37,c:29,f:13,note:"High protein"},{n:"Spicy Grilled Sandwich",cal:350,p:31,c:42,f:8,note:"Still lean"}],dinner:[{n:"Grilled Chicken Club",cal:430,p:38,c:43,f:11,note:"Skip mayo"},{n:"Grilled Nuggets 12ct + Salad",cal:300,p:37,c:16,f:6,note:"High protein low carb"},{n:"Market Salad + Nuggets",cal:470,p:52,c:29,f:17,note:"Elite protein"},{n:"Cool Wrap + Fruit Cup",cal:420,p:38,c:40,f:13,note:"Balanced"},{n:"Sandwich + Side Salad",cal:395,p:31,c:50,f:8,note:"Full dinner"}]}},
+  {chain:"Chipotle",emoji:"🌯",color:"#A81612",tip:"BOWL not burrito — tortilla adds 300 cal.",meals:{breakfast:[{n:"Not Served",cal:0,p:0,c:0,f:0,note:"No breakfast"}],lunch:[{n:"Chicken Bowl no cheese/SC",cal:525,p:43,c:58,f:13,note:"Best macros"},{n:"Steak Bowl + fajita",cal:540,p:40,c:52,f:15,note:"Skip guac if cutting"},{n:"Chicken Salad no dressing",cal:380,p:42,c:22,f:13,note:"Highest protein"},{n:"Barbacoa Bowl brown rice",cal:560,p:38,c:64,f:16,note:"High fiber"},{n:"Double Protein Chicken Bowl",cal:650,p:60,c:58,f:14,note:"Muscle building"}],dinner:[{n:"Chicken Bowl brown rice",cal:560,p:45,c:62,f:14,note:"Best dinner"},{n:"Steak Bowl salsa only",cal:510,p:40,c:48,f:15,note:"Clean macros"},{n:"Sofritas Bowl vegan",cal:475,p:22,c:60,f:14,note:"Plant-based"},{n:"Chicken Salad Bowl",cal:380,p:42,c:22,f:13,note:"Lightest"},{n:"Barbacoa no rice extra veg",cal:380,p:36,c:22,f:14,note:"Low carb"}]}},
+  {chain:"Subway",emoji:"🥖",color:"#009B48",tip:"6-inch whole wheat. Free veggies. Mustard not mayo.",meals:{breakfast:[{n:"Egg & Cheese Wrap",cal:350,p:18,c:38,f:13,note:"Extra egg whites"},{n:"Ham Egg & Cheese",cal:320,p:19,c:38,f:10,note:"Leanest sub"},{n:"Bacon Egg no mayo",cal:380,p:22,c:37,f:14,note:"Higher protein"},{n:"Steak Egg & Cheese",cal:420,p:28,c:38,f:16,note:"Most protein"},{n:"Veggie Egg Wrap",cal:310,p:16,c:36,f:11,note:"Double egg whites"}],lunch:[{n:"Turkey Breast 6\" WW",cal:280,p:19,c:46,f:3.5,note:"Free veggies"},{n:"Roasted Chicken 6\"",cal:310,p:24,c:46,f:5,note:"Best protein/$"},{n:"Chicken Salad Bowl",cal:290,p:28,c:19,f:11,note:"Dressing on side"},{n:"Tuna no mayo mustard",cal:300,p:20,c:44,f:6,note:"Omega-3"},{n:"Turkey & Ham no mayo",cal:300,p:22,c:44,f:5,note:"Dual protein"}],dinner:[{n:"Rotisserie Chicken 6\"",cal:330,p:29,c:44,f:6,note:"Best protein"},{n:"Steak & Cheese no sauce",cal:380,p:26,c:44,f:11,note:"Higher protein"},{n:"Turkey & Ham",cal:300,p:22,c:44,f:5,note:"Light and lean"},{n:"Veggie + double chicken",cal:320,p:20,c:44,f:5,note:"Add avocado"},{n:"Grilled Chicken Salad",cal:280,p:26,c:18,f:9,note:"Low carb"}]}},
+  {chain:"Wendy's",emoji:"🍔",color:"#E2231A",tip:"Baked potato is your secret weapon. Grilled chicken excellent.",meals:{breakfast:[{n:"Egg & Swiss Croissant",cal:340,p:16,c:31,f:18,note:"Better than sausage"},{n:"Maple Bacon Chicken",cal:470,p:28,c:40,f:21,note:"Skip mayo"},{n:"Oatmeal Bar",cal:230,p:4,c:38,f:7,note:"Light"},{n:"Jr Bacon Cheeseburger",cal:380,p:20,c:26,f:21,note:"High protein"},{n:"Egg Cheese Biscuit",cal:400,p:17,c:34,f:22,note:"Skip butter"}],lunch:[{n:"Grilled Chicken Sandwich",cal:340,p:34,c:36,f:7,note:"Best macro sandwich"},{n:"Apple Pecan Salad half",cal:260,p:27,c:22,f:8,note:"Dressing on side"},{n:"Junior Hamburger no mayo",cal:230,p:12,c:25,f:8,note:"Lowest cal burger"},{n:"Grilled Chicken Wrap",cal:300,p:28,c:32,f:8,note:"Skip ranch"},{n:"Baked Potato + Chili",cal:430,p:16,c:74,f:5,note:"Carb+protein combo"}],dinner:[{n:"Grilled Chicken + Salad",cal:415,p:36,c:44,f:9,note:"Best full dinner"},{n:"Baked Potato + Chili",cal:430,p:16,c:74,f:5,note:"Solid combo"},{n:"Grilled Chicken Wrap",cal:300,p:28,c:32,f:8,note:"Light clean"},{n:"Apple Salad + Chicken",cal:340,p:32,c:26,f:10,note:"Refreshing"},{n:"Dave's Single no mayo",cal:430,p:24,c:40,f:18,note:"Burger option"}]}},
+  {chain:"Taco Bell",emoji:"🌮",color:"#702082",tip:"Fresco Style = salsa instead of cheese/SC. Saves 100-150 kcal.",meals:{breakfast:[{n:"Egg & Cheese Taco x2",cal:340,p:16,c:40,f:12,note:"Get 2 for protein"},{n:"Grande Scrambler Fresco",cal:380,p:18,c:48,f:12,note:"Cuts 100 kcal"},{n:"Breakfast Crunchwrap",cal:430,p:20,c:50,f:17,note:"Extra egg, no sausage"},{n:"Mini Skillet Bowl",cal:180,p:8,c:18,f:8,note:"Lowest cal"},{n:"Cheesy Burrito Fresco",cal:330,p:14,c:44,f:10,note:"Fresco style"}],lunch:[{n:"Power Bowl Chicken Fresco",cal:420,p:26,c:50,f:11,note:"Best macro bowl"},{n:"Grilled Chicken Burrito Fresco",cal:350,p:22,c:47,f:8,note:"Solid macros"},{n:"Chicken Soft Tacos x2 Fresco",cal:300,p:20,c:38,f:8,note:"Great per taco"},{n:"Cantina Chicken Bowl",cal:490,p:30,c:55,f:14,note:"Highest protein"},{n:"Veggie Power Bowl Fresco",cal:410,p:14,c:62,f:11,note:"Plant-based"}],dinner:[{n:"Cantina Chicken Bowl",cal:490,p:30,c:55,f:14,note:"Best protein"},{n:"Chicken Power Bowl Fresco",cal:470,p:28,c:52,f:12,note:"Skip sour cream"},{n:"Grilled Chicken Burrito",cal:350,p:22,c:47,f:8,note:"Light clean"},{n:"Steak Soft Tacos x2",cal:320,p:20,c:38,f:10,note:"Grilled steak"},{n:"Chicken + Bean Burrito",cal:400,p:22,c:52,f:10,note:"Fiber + protein"}]}},
+  {chain:"Panera",emoji:"🥗",color:"#1B6B3A",tip:"Skip bread bowl (+600 cal). Pick Two is the winning strategy.",meals:{breakfast:[{n:"Steel Cut Oatmeal",cal:290,p:8,c:56,f:5,note:"Clean breakfast"},{n:"Avocado Egg Spinach",cal:340,p:20,c:34,f:14,note:"High protein"},{n:"Egg Cheese half",cal:350,p:19,c:34,f:15,note:"Half portion"},{n:"Fruit + Egg Bites",cal:340,p:15,c:36,f:12,note:"Light combo"},{n:"Turkey Pesto half",cal:310,p:18,c:38,f:8,note:"Lean protein"}],lunch:[{n:"Turkey Avocado BLT half",cal:340,p:20,c:34,f:14,note:"Pair with soup"},{n:"Greek Salad + Chicken",cal:390,p:31,c:22,f:21,note:"Healthy fats"},{n:"Ten Vegetable Soup",cal:130,p:5,c:26,f:1,note:"Low cal side"},{n:"Green Goddess Cobb",cal:490,p:40,c:22,f:28,note:"Highest protein"},{n:"Chicken Noodle + Half Turkey",cal:480,p:26,c:58,f:11,note:"Pick Two"}],dinner:[{n:"Green Goddess Cobb Salad",cal:430,p:35,c:18,f:25,note:"High protein"},{n:"Herb Chicken + Side Salad",cal:480,p:38,c:44,f:16,note:"Filling"},{n:"Greek Salad + Chicken + Soup",cal:520,p:34,c:38,f:22,note:"Full dinner"},{n:"Turkey Half + Greek Salad",cal:490,p:30,c:42,f:20,note:"Balanced"},{n:"Broccoli Cheddar + Turkey",cal:620,p:26,c:64,f:28,note:"Comfort meal"}]}},
+  {chain:"Starbucks",emoji:"☕",color:"#006241",tip:"Frappuccinos = 500+ empty cal. Egg bites + protein boxes = best picks.",meals:{breakfast:[{n:"Sous Vide Egg Bites",cal:310,p:19,c:9,f:20,note:"High protein keto"},{n:"Spinach Feta Wrap",cal:290,p:20,c:33,f:8,note:"Best SB breakfast"},{n:"Egg Cheese Protein Box",cal:460,p:25,c:46,f:19,note:"On-the-go"},{n:"Turkey Bacon Egg White",cal:230,p:17,c:25,f:6,note:"Lightest"},{n:"Kale Portabella Bites",cal:230,p:13,c:13,f:13,note:"Plant-forward"}],lunch:[{n:"Chicken Quinoa Bowl",cal:420,p:27,c:52,f:11,note:"Best SB meal"},{n:"Kale Farro Salad",cal:390,p:14,c:50,f:16,note:"High fiber"},{n:"Turkey Pesto Sandwich",cal:420,p:22,c:52,f:13,note:"Good macros"},{n:"Chicken Hummus Box",cal:420,p:28,c:38,f:16,note:"On-the-go"},{n:"Egg Bites x2",cal:620,p:38,c:18,f:40,note:"High protein"}],dinner:[{n:"Chicken Hummus Box",cal:420,p:28,c:38,f:16,note:"Best dinner"},{n:"Cheese Fruit Protein Box",cal:380,p:14,c:36,f:20,note:"Light evening"},{n:"Turkey Pesto Sandwich",cal:420,p:22,c:52,f:13,note:"Light"},{n:"Chicken Bowl + Cold Brew",cal:425,p:27,c:53,f:11,note:"Full meal"},{n:"Egg Bites + Protein Box",cal:730,p:47,c:47,f:36,note:"Max protein"}]}},
+  {chain:"Panda Express",emoji:"🥡",color:"#D92B2B",tip:"Grilled Teriyaki Chicken every time. Mixed veggies over chow mein.",meals:{breakfast:[{n:"Not Served",cal:0,p:0,c:0,f:0,note:"No breakfast"}],lunch:[{n:"Grilled Teriyaki + rice",cal:530,p:36,c:76,f:8,note:"Best macros"},{n:"String Bean Chicken",cal:470,p:32,c:68,f:7,note:"High protein"},{n:"Broccoli Beef + veggies",cal:380,p:26,c:40,f:11,note:"Lower cal"},{n:"Super Greens + Teriyaki",cal:380,p:36,c:24,f:8,note:"Low carb"},{n:"Mushroom Chicken brown rice",cal:450,p:28,c:64,f:9,note:"Lighter"}],dinner:[{n:"Teriyaki + chow mein",cal:570,p:36,c:68,f:12,note:"Good protein"},{n:"Shanghai Angus Steak",cal:590,p:40,c:72,f:13,note:"Highest protein"},{n:"Teriyaki + steamed veggies",cal:380,p:36,c:28,f:8,note:"Cleanest"},{n:"String Bean + Super Greens",cal:360,p:30,c:30,f:8,note:"Low cal"},{n:"Kung Pao Shrimp + rice",cal:480,p:28,c:60,f:12,note:"Seafood"}]}},
+  {chain:"In-N-Out",emoji:"🍔",color:"#FF6E00",tip:"Protein Style = lettuce wrap. Cuts ~200 cal.",meals:{breakfast:[{n:"Not Served",cal:0,p:0,c:0,f:0,note:"No breakfast"}],lunch:[{n:"Hamburger Protein Style",cal:240,p:16,c:11,f:17,note:"Low carb"},{n:"Double-Double Protein Style",cal:400,p:33,c:11,f:27,note:"High protein"},{n:"Cheeseburger no spread",cal:400,p:22,c:41,f:18,note:"Saves 80 kcal"},{n:"Animal Style no spread",cal:450,p:22,c:41,f:26,note:"Mustard fried"},{n:"3x3 Protein Style",cal:520,p:44,c:11,f:36,note:"Secret menu"}],dinner:[{n:"Double-Double Protein Style",cal:400,p:33,c:11,f:27,note:"Best protein"},{n:"Hamburger + Side Salad",cal:380,p:20,c:38,f:18,note:"Balanced"},{n:"Double-Double + Salad",cal:465,p:35,c:19,f:29,note:"Full dinner"},{n:"Cheeseburger Protein Style",cal:360,p:22,c:11,f:24,note:"Low carb"},{n:"Grilled Cheese Protein Style",cal:280,p:12,c:4,f:22,note:"Vegetarian"}]}},
+  {chain:"Raising Cane's",emoji:"🍗",color:"#FFA500",tip:"Skip Cane's sauce — 150 cal per dip.",meals:{breakfast:[{n:"Not Served",cal:0,p:0,c:0,f:0,note:"No breakfast"}],lunch:[{n:"Box Combo no sauce coleslaw",cal:490,p:40,c:32,f:20,note:"Best combo"},{n:"3 Finger no sauce",cal:380,p:28,c:28,f:16,note:"Lower cal"},{n:"Sandwich no sauce",cal:420,p:34,c:40,f:14,note:"Saves 150 kcal"},{n:"3 Tenders only",cal:280,p:32,c:10,f:12,note:"Pure protein"},{n:"Caniac no sauce",cal:520,p:44,c:36,f:21,note:"Highest protein"}],dinner:[{n:"Caniac no sauce",cal:520,p:44,c:36,f:21,note:"Most protein"},{n:"Box no sauce coleslaw",cal:490,p:40,c:32,f:20,note:"Smart swap"},{n:"3 Tenders + Side Salad",cal:400,p:34,c:24,f:18,note:"Balanced"},{n:"Sandwich + Coleslaw",cal:500,p:36,c:46,f:18,note:"Filling"},{n:"4 Tenders no sauce",cal:370,p:42,c:13,f:16,note:"Max protein"}]}},
+  {chain:"Sweetgreen",emoji:"🥬",color:"#2E7D32",tip:"Every bowl is great. Easy on dressings — 150-300 cal each.",meals:{breakfast:[{n:"Harvest Bowl",cal:705,p:27,c:75,f:30,note:"Filling bowl"},{n:"Kale Caesar + Chicken half",cal:350,p:28,c:18,f:18,note:"Lighter"},{n:"Hot Honey Chicken half",cal:333,p:21,c:30,f:12,note:"Half portion"},{n:"Guacamole Greens Bowl",cal:540,p:28,c:40,f:28,note:"Healthy fats"},{n:"Custom Protein Greens",cal:450,p:36,c:28,f:20,note:"Build your own"}],lunch:[{n:"Hot Honey Chicken Bowl",cal:665,p:42,c:60,f:24,note:"Highest protein"},{n:"Harvest Bowl",cal:705,p:27,c:75,f:30,note:"Sweet potato chicken"},{n:"Kale Caesar + Chicken",cal:440,p:38,c:22,f:20,note:"Classic"},{n:"Shroomami Bowl",cal:590,p:24,c:68,f:24,note:"Mushroom tofu"},{n:"Guacamole Greens",cal:540,p:28,c:40,f:28,note:"Healthy fats"}],dinner:[{n:"Hot Honey Chicken Bowl",cal:665,p:42,c:60,f:24,note:"Best protein"},{n:"Garden Cobb + Chicken",cal:480,p:38,c:22,f:26,note:"Light carbs"},{n:"Grains Greens + Chicken",cal:520,p:36,c:52,f:18,note:"Balanced"},{n:"Kale Caesar + Salmon",cal:520,p:40,c:22,f:26,note:"Omega-3"},{n:"Harvest Bowl",cal:705,p:27,c:75,f:30,note:"Post-training"}]}},
+  {chain:"Five Guys",emoji:"🍟",color:"#EF3E23",tip:"Little Burger cuts 200+ cal. Skip fries or share one.",meals:{breakfast:[{n:"Not Served",cal:0,p:0,c:0,f:0,note:"No breakfast"}],lunch:[{n:"Little Hamburger no bun",cal:220,p:18,c:2,f:16,note:"Lowest cal"},{n:"Little Bacon Burger",cal:380,p:26,c:39,f:17,note:"Better macros"},{n:"Little Cheeseburger",cal:380,p:22,c:32,f:19,note:"Reasonable"},{n:"Little Bacon Cheese no bun",cal:340,p:28,c:2,f:24,note:"High protein"},{n:"Veggie Sandwich",cal:440,p:11,c:60,f:15,note:"Plant-based"}],dinner:[{n:"Little Hamburger lettuce",cal:210,p:18,c:4,f:14,note:"Low carb"},{n:"Little Bacon + Salad",cal:440,p:28,c:43,f:19,note:"Balanced"},{n:"Little Cheeseburger",cal:380,p:22,c:32,f:19,note:"Good protein"},{n:"Little Bacon Cheese",cal:450,p:28,c:39,f:22,note:"High protein"},{n:"Little Hamburger x2 no bun",cal:440,p:36,c:4,f:32,note:"Double protein"}]}},
+  {chain:"Jimmy John's",emoji:"🥪",color:"#D4A843",tip:"Unwich = lettuce wrap. Cuts 200+ cal.",meals:{breakfast:[{n:"Not Served",cal:0,p:0,c:0,f:0,note:"No breakfast"}],lunch:[{n:"Turkey Tom Unwich",cal:270,p:22,c:5,f:17,note:"Low carb"},{n:"Slim Turkey WW",cal:330,p:24,c:44,f:4,note:"Low fat"},{n:"Club Tuna Unwich",cal:330,p:26,c:4,f:22,note:"Omega-3"},{n:"Big John Unwich",cal:300,p:24,c:4,f:20,note:"Roast beef"},{n:"Bootlegger Club Unwich",cal:360,p:28,c:5,f:24,note:"Double protein"}],dinner:[{n:"Billy Club Unwich",cal:340,p:28,c:5,f:22,note:"High protein"},{n:"Italian Night Club half",cal:360,p:22,c:40,f:12,note:"Half is plenty"},{n:"Country Club Unwich",cal:290,p:22,c:4,f:18,note:"Light clean"},{n:"Bootlegger Club Unwich",cal:360,p:28,c:5,f:24,note:"Double protein"},{n:"Slim Tuna WW no mayo",cal:310,p:20,c:44,f:4,note:"Omega-3"}]}},
+];
+
+// ─── FOOD ITEM DETAIL ───────────────────────────────────────
+function FoodItemDetail({item,chain,details,tier,onUpgrade,onBack}){
+  const[selAddons,setSelAddons]=useState({});
+  const[selSides,setSelSides]=useState({});
+  const isPro=tier==="pro";
+  const sidesList=SIDES_BY_CHAIN[chain.chain]||[];
+  // Compute live macros with selected add-ons AND sides
+  const totals=(()=>{
+    let acc={cal:item.cal,p:item.p,c:item.c,f:item.f};
+    Object.keys(selAddons).forEach(key=>{
+      if(selAddons[key]&&ADDONS[key]){
+        acc.cal+=ADDONS[key].cal;acc.p+=ADDONS[key].p;acc.c+=ADDONS[key].c;acc.f+=ADDONS[key].f;
+      }
+    });
+    Object.keys(selSides).forEach(key=>{
+      if(selSides[key]){
+        const side=sidesList.find(s=>s.key===key);
+        if(side){acc.cal+=side.cal;acc.p+=side.p;acc.c+=side.c;acc.f+=side.f;}
+      }
+    });
+    return acc;
+  })();
+  const anySelected=Object.values(selAddons).some(v=>v)||Object.values(selSides).some(v=>v);
+  function toggle(key){setSelAddons(p=>({...p,[key]:!p[key]}));}
+  function toggleSide(key){setSelSides(p=>({...p,[key]:!p[key]}));}
+
+  return(<div>
+    <BackBtn onClick={onBack}/>
+    <div style={{background:`linear-gradient(135deg,${chain.color}22,${chain.color}08)`,border:`1.5px solid ${chain.color}44`,borderRadius:18,padding:18,marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+        <span style={{fontSize:24}}>{chain.emoji}</span>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,letterSpacing:".1em",textTransform:"uppercase"}}>{chain.chain}</div>
+      </div>
+      <div style={{fontFamily:FH,fontSize:22,color:chain.color,letterSpacing:".04em",lineHeight:1.2}}>{item.n}</div>
+    </div>
+    {/* Live macro display */}
+    <Card glow={chain.color} ch={<div>
+      <Sec ch={anySelected?"Live Macros (with your additions)":"Macros"} color={chain.color}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+        <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"10px 6px",borderLeft:`3px solid ${chain.color}`}}><div style={{fontFamily:FH,fontSize:20,color:chain.color}}>{totals.cal}</div><div style={{fontFamily:FB,fontSize:9,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>kcal</div></div>
+        <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"10px 6px",borderLeft:`3px solid ${C.cyan}`}}><div style={{fontFamily:FH,fontSize:20,color:C.cyan}}>{totals.p}</div><div style={{fontFamily:FB,fontSize:9,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>protein</div></div>
+        <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"10px 6px",borderLeft:`3px solid ${C.lime}`}}><div style={{fontFamily:FH,fontSize:20,color:C.lime}}>{totals.c}</div><div style={{fontFamily:FB,fontSize:9,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>carbs</div></div>
+        <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"10px 6px",borderLeft:`3px solid ${C.coral}`}}><div style={{fontFamily:FH,fontSize:20,color:C.coral}}>{totals.f}</div><div style={{fontFamily:FB,fontSize:9,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>fat</div></div>
+      </div>
+      {anySelected&&<div style={{marginTop:10,fontFamily:FB,fontSize:11,color:C.lime,textAlign:"center"}}>Base: {item.cal}kcal · +{totals.cal-item.cal} from additions</div>}
+    </div>}/>
+    {/* How to order */}
+    {details?(<Card glow={C.amber} ch={<div>
+      <Sec ch="🗣 How To Order" color={C.amber}/>
+      <div style={{background:C.amber+"11",border:`1px solid ${C.amber}33`,borderRadius:10,padding:"10px 13px",marginBottom:10}}>
+        <div style={{fontFamily:FB,fontSize:11,color:C.amber,fontWeight:700,marginBottom:4,textTransform:"uppercase",letterSpacing:".1em"}}>At the counter:</div>
+        <div style={{fontFamily:FB,fontSize:13,color:C.text,lineHeight:1.6,fontStyle:"italic"}}>{details.order}</div>
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,fontWeight:700,marginBottom:4,textTransform:"uppercase",letterSpacing:".1em"}}>Comes with:</div>
+        <div style={{fontFamily:FB,fontSize:12,color:C.text,lineHeight:1.6}}>{details.includes}</div>
+      </div>
+      <div style={{background:C.card2,borderRadius:8,padding:"8px 12px",fontFamily:FB,fontSize:11,color:C.sub,lineHeight:1.6}}>💡 {details.macroNote}</div>
+    </div>}/>):(<Card ch={<div style={{textAlign:"center",padding:"10px 0"}}>
+      <div style={{fontFamily:FB,fontSize:12,color:C.sub,lineHeight:1.6}}>✓ {item.note}</div>
+    </div>}/>)}
+    {/* Pro: Customizer for add-ons */}
+    {details&&details.addons&&details.addons.length>0&&(isPro?(<Card glow={C.gold} ch={<div>
+      <Sec ch="👑 Customize Your Order" color={C.gold}/>
+      <div style={{fontFamily:FB,fontSize:11,color:C.sub,marginBottom:12,lineHeight:1.6}}>Toggle add-ons. Macros update live above.</div>
+      {details.addons.map(key=>{const addon=ADDONS[key];if(!addon)return null;const on=selAddons[key];return(<div key={key} className="tap" onClick={()=>toggle(key)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",borderRadius:10,background:on?C.gold+"18":C.card2,border:`1.5px solid ${on?C.gold:C.border}`,marginBottom:6,cursor:"pointer"}}>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:FB,fontSize:12,fontWeight:800,color:on?C.gold:C.text}}>{addon.name}</div>
+          <div style={{fontFamily:FB,fontSize:10,color:C.sub,marginTop:1}}>+{addon.cal}kcal · {addon.p}p · {addon.c}c · {addon.f}f</div>
+        </div>
+        <div style={{width:24,height:24,borderRadius:6,background:on?C.gold:"transparent",border:`1.5px solid ${on?C.gold:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:C.bg,fontWeight:800}}>{on?"✓":""}</div>
+      </div>);})}
+    </div>}/>):(<LockedFeature tierRequired="pro" onUpgrade={()=>onUpgrade("pro")}><Card ch={<div>
+      <Sec ch="👑 Customize Your Order" color={C.gold}/>
+      <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginBottom:10}}>Toggle dressings, toppings, sides, and drinks. Watch macros update in real time.</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{details.addons.slice(0,5).map(key=>ADDONS[key]&&(<Tag key={key} ch={ADDONS[key].name} color={C.gold}/>))}</div>
+    </div>}/></LockedFeature>))}
+    {/* Sides & Drinks — available for all tiers but Pro has more interactivity */}
+    {sidesList.length>0&&(isPro?(<Card glow={C.cyan} ch={<div>
+      <Sec ch="🍟 Sides & Drinks" color={C.cyan}/>
+      <div style={{fontFamily:FB,fontSize:11,color:C.sub,marginBottom:12,lineHeight:1.6}}>Add sides and drinks to your order. Macros update live above.</div>
+      {sidesList.map(side=>{const on=selSides[side.key];return(<div key={side.key} className="tap" onClick={()=>toggleSide(side.key)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",borderRadius:10,background:on?C.cyan+"18":C.card2,border:`1.5px solid ${on?C.cyan:C.border}`,marginBottom:6,cursor:"pointer"}}>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:FB,fontSize:12,fontWeight:800,color:on?C.cyan:C.text}}>{side.name}</div>
+          <div style={{fontFamily:FB,fontSize:10,color:C.sub,marginTop:1}}>+{side.cal}kcal · {side.p}p · {side.c}c · {side.f}f</div>
+        </div>
+        <div style={{width:24,height:24,borderRadius:6,background:on?C.cyan:"transparent",border:`1.5px solid ${on?C.cyan:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:C.bg,fontWeight:800}}>{on?"✓":""}</div>
+      </div>);})}
+    </div>}/>):(<LockedFeature tierRequired="pro" onUpgrade={()=>onUpgrade("pro")}><Card ch={<div>
+      <Sec ch="🍟 Sides & Drinks" color={C.cyan}/>
+      <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginBottom:10}}>Add fries, sodas, shakes, salads and more. See how each side affects your daily macros in real time.</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{sidesList.slice(0,5).map(side=>(<Tag key={side.key} ch={side.name} color={C.cyan}/>))}</div>
+    </div>}/></LockedFeature>))}
+  </div>);
+}
+
+// ─── FAST FOOD TAB ────────────────────────────────────────
+function FastFoodTab({tier,onUpgrade}){
+  const[chain,setChain]=useState(null);
+  const[meal,setMeal]=useState("lunch");
+  const[selItem,setSelItem]=useState(null);
+  const FREE_CHAINS=3;
+
+  if(selItem){
+    const c=FF.find(x=>x.chain===chain);
+    const details=ITEM_DETAILS[selItem.n];
+    return(<FoodItemDetail item={selItem} chain={c} details={details} tier={tier} onUpgrade={onUpgrade} onBack={()=>setSelItem(null)}/>);
+  }
+
+  if(chain){
+    const c=FF.find(x=>x.chain===chain);
+    return(<div>
+      <BackBtn onClick={()=>setChain(null)}/>
+      <div style={{background:`linear-gradient(135deg,${c.color}22,${c.color}08)`,border:`1.5px solid ${c.color}44`,borderRadius:18,padding:18,marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+          <span style={{fontSize:32}}>{c.emoji}</span>
+          <div><div style={{fontFamily:FH,fontSize:22,color:c.color,letterSpacing:".05em"}}>{c.chain}</div></div>
+        </div>
+        <div style={{background:c.color+"18",borderRadius:9,padding:"9px 13px"}}><div style={{fontFamily:FB,fontSize:10,color:c.color,fontWeight:700,marginBottom:2}}>💡 PRO TIP</div><div style={{fontFamily:FB,fontSize:12,color:C.text,lineHeight:1.7}}>{c.tip}</div></div>
+      </div>
+      <div style={{display:"flex",gap:7,marginBottom:12}}>{["breakfast","lunch","dinner"].map(m=>(<button key={m} className="tap" onClick={()=>setMeal(m)} style={{flex:1,padding:"9px 4px",borderRadius:11,border:`1.5px solid ${meal===m?C.lime:C.border}`,background:meal===m?C.lime+"18":C.card2,color:meal===m?C.lime:C.sub,fontFamily:FH,fontSize:11,letterSpacing:".08em",cursor:"pointer",textTransform:"uppercase"}}>{m==="breakfast"?"🌅":m==="lunch"?"☀️":"🌙"} {m}</button>))}</div>
+      {c.meals[meal].map((item,i)=>{const hasDetails=!!ITEM_DETAILS[item.n];return(<div key={i} className="tap" onClick={()=>item.cal>0&&setSelItem(item)} style={{cursor:item.cal>0?"pointer":"default"}}><Card ch={item.cal===0?(<div style={{fontFamily:FB,fontSize:13,color:C.sub,textAlign:"center",padding:"10px 0"}}>{item.note}</div>):(<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}><div style={{fontFamily:FB,fontSize:13,fontWeight:800,color:C.text,flex:1,paddingRight:7}}>{item.n}</div><Tag ch={`${item.cal}kcal`} color={c.color}/></div><div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:7}}><Tag ch={`${item.p}g protein`} color={C.cyan}/><Tag ch={`${item.c}g carbs`} color={C.lime}/><Tag ch={`${item.f}g fat`} color={C.coral}/></div><div style={{fontFamily:FB,fontSize:11,color:C.sub,background:C.card2,borderRadius:7,padding:"7px 11px",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>✓ {item.note}</span>{hasDetails&&<span style={{color:c.color,fontFamily:FH,fontSize:11,letterSpacing:".08em"}}>TAP →</span>}</div></div>)}/></div>);})}
+    </div>);
+  }
+  return(<div>
+    <Card glow={C.amber} ch={<div><div style={{fontFamily:FH,fontSize:26,color:C.amber,letterSpacing:".05em",marginBottom:6}}>🚀 Fast Food Guide</div><div style={{fontFamily:FB,fontSize:13,color:C.sub,lineHeight:1.7}}>Smart picks at 14 chains. Full macro breakdowns. Eat smart on the go.</div></div>}/>
+    {tier==="free"&&<div style={{background:C.amber+"18",border:`1px solid ${C.amber}33`,borderRadius:12,padding:"10px 14px",marginBottom:12}}><div style={{fontFamily:FB,fontSize:12,color:C.amber,fontWeight:700}}>🆓 Free: 3 chains. Upgrade for all 14.</div></div>}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
+      {FF.map((c,idx)=>{const locked=tier==="free"&&idx>=FREE_CHAINS;return(<div key={c.chain} className="tap" onClick={()=>locked?onUpgrade("basic"):setChain(c.chain)} style={{background:C.card,border:`1.5px solid ${locked?C.border:c.color+"33"}`,borderRadius:14,padding:13,cursor:"pointer",borderLeft:`3px solid ${locked?C.border:c.color}`,opacity:locked?.6:1,position:"relative"}}>
+        {locked&&<div style={{position:"absolute",top:8,right:8,fontSize:12}}>🔒</div>}
+        <div style={{fontSize:20,marginBottom:3}}>{c.emoji}</div>
+        <div style={{fontFamily:FH,fontSize:12,color:locked?C.sub:c.color,letterSpacing:".04em"}}>{c.chain}</div>
+      </div>);})}
+    </div>
+  </div>);
+}
+
+// ─── WORKOUT DATA + REST TIMER ────────────────────────────
+const EX_SETS={"Squat":"4×6","Deadlift":"3×5","Bench Press":"4×8","Bent-Over Row":"3×8","Shoulder Press":"3×10","Pull-Ups":"4×8","Bicep Curl":"3×12","Lunge":"3×12","Plank":"3×45s","Walk":"25 min","Romanian Deadlift":"3×12","Hip Thrust":"3×15","Lat Pulldown":"4×12","Tricep Pushdown":"3×12","Lateral Raises":"3×15","Incline DB Press":"3×10","Leg Press":"4×12","Calf Raises":"4×15","Face Pulls":"3×15","Dips":"3×12","Pec Deck":"3×15","Leg Extension":"4×15","Leg Curl":"3×15","Hack Squat":"4×12","Hyperextensions":"3×15","Bulgarian Split Squat":"3×10","Hammer Curl":"3×12","Cable Row":"3×12"};
+const REST_SEC={"Squat":180,"Deadlift":180,"Bench Press":180,"Bent-Over Row":150,"Pull-Ups":150,"Shoulder Press":150,"Romanian Deadlift":120,"Hip Thrust":120,"Hack Squat":150,"Leg Press":120,"Bulgarian Split Squat":120,"Lunge":90,"Incline DB Press":90,"Lat Pulldown":90,"Cable Row":90,"Dips":90,"Hyperextensions":90,"Face Pulls":60,"Leg Extension":60,"Leg Curl":60,"Calf Raises":60,"Bicep Curl":60,"Hammer Curl":60,"Tricep Pushdown":60,"Lateral Raises":60,"Pec Deck":60,"Plank":45,"Walk":0};
+
+function RestTimer({exName,onClose}){
+  const def=REST_SEC[exName]??90;
+  const[targetSecs,setTargetSecs]=useState(def);  // The duration to use when starting
+  const[secs,setSecs]=useState(def);
+  const[running,setRunning]=useState(false);
+  const[done,setDone]=useState(false);
+  const intervalRef=useRef(null);
+  useEffect(()=>{
+    if(running){
+      intervalRef.current=setInterval(()=>{
+        setSecs(s=>{
+          if(s<=1){clearInterval(intervalRef.current);setRunning(false);setDone(true);try{new AudioContext().resume();}catch(e){}return 0;}
+          return s-1;
+        });
+      },1000);
+    }
+    return()=>clearInterval(intervalRef.current);
+  },[running]);
+  function start(){
+    // If resuming from a paused state with time remaining, just resume
+    // If done or fresh, start at the target duration
+    if(done||secs===0||secs===targetSecs){setSecs(targetSecs);setDone(false);}
+    setRunning(true);
+  }
+  function pause(){clearInterval(intervalRef.current);setRunning(false);}
+  function reset(){clearInterval(intervalRef.current);setRunning(false);setDone(false);setSecs(targetSecs);}
+  function pickDuration(t){
+    clearInterval(intervalRef.current);
+    setRunning(false);
+    setDone(false);
+    setTargetSecs(t);
+    setSecs(t);
+  }
+  if(def===0)return(<div style={{background:C.card2,borderRadius:14,padding:"14px 16px",marginBottom:12,border:`1px solid ${C.teal}33`}}>
+    <div style={{fontFamily:FB,fontSize:12,color:C.teal,marginBottom:4}}>🏃 Cardio — no rest, keep moving!</div>
+    <button className="tap" onClick={onClose} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",color:C.sub,fontFamily:FB,fontSize:11,fontWeight:700,cursor:"pointer"}}>✕ Close</button>
+  </div>);
+  const pct=Math.round((1-secs/targetSecs)*100);
+  const col=done?C.green:secs<=10?C.coral:secs<=30?C.amber:C.cyan;
+  const m=Math.floor(secs/60),s=secs%60;
+  const durLabel=targetSecs>=60?`${(targetSecs/60).toFixed(targetSecs%60===0?0:1)} min rest`:`${targetSecs} sec rest`;
+  return(<div style={{background:C.card2,borderRadius:16,padding:20,marginBottom:12,border:`2px solid ${col}44`,textAlign:"center"}}>
+    <div style={{fontFamily:FH,fontSize:13,color:C.sub,letterSpacing:".15em",marginBottom:4}}>REST TIMER</div>
+    <div style={{fontFamily:FB,fontSize:11,color:C.sub,marginBottom:14}}>{durLabel}{targetSecs!==def?" (custom)":` · default for ${exName}`}</div>
+    <div style={{position:"relative",display:"inline-block",marginBottom:16}}>
+      <Ring pct={pct} color={col} size={140} stroke={9}/>
+      <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+        {done?<div style={{fontFamily:FH,fontSize:24,color:C.green}}>GO! 💪</div>:<div style={{fontFamily:FH,fontSize:42,color:col,lineHeight:1}}>{m}:{s.toString().padStart(2,"0")}</div>}
+      </div>
+    </div>
+    <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:10,flexWrap:"wrap"}}>
+      {!running&&!done&&<button className="tap" onClick={start} style={{padding:"10px 22px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${col},${col}CC)`,color:C.bg,fontFamily:FH,fontSize:15,letterSpacing:".08em",cursor:"pointer"}}>{secs<targetSecs&&secs>0?"▶ RESUME":"▶ START"}</button>}
+      {running&&<button className="tap" onClick={pause} style={{padding:"10px 22px",borderRadius:12,border:`1.5px solid ${C.amber}`,background:C.amber+"18",color:C.amber,fontFamily:FH,fontSize:15,letterSpacing:".08em",cursor:"pointer"}}>⏸ PAUSE</button>}
+      {done&&<button className="tap" onClick={start} style={{padding:"10px 22px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${C.green},${C.green}CC)`,color:C.bg,fontFamily:FH,fontSize:15,letterSpacing:".08em",cursor:"pointer"}}>↺ AGAIN</button>}
+      <button className="tap" onClick={reset} style={{padding:"10px 16px",borderRadius:12,border:`1.5px solid ${C.border}`,background:"transparent",color:C.sub,fontFamily:FH,fontSize:15,cursor:"pointer"}}>↺</button>
+    </div>
+    <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap",marginBottom:10}}>
+      {[30,45,60,90,120,180,240,300].map(t=>(<button key={t} className="tap" onClick={()=>pickDuration(t)} style={{padding:"4px 10px",borderRadius:8,border:`1px solid ${targetSecs===t?col:C.border}`,background:targetSecs===t?col+"18":"transparent",color:targetSecs===t?col:C.sub,fontFamily:FB,fontSize:10,fontWeight:700,cursor:"pointer"}}>{t<60?`${t}s`:`${t/60}m`}</button>))}
+    </div>
+    <button className="tap" onClick={onClose} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 16px",color:C.sub,fontFamily:FB,fontSize:11,fontWeight:700,cursor:"pointer"}}>✕ Close Timer</button>
+  </div>);
+}
+
+// ─── WORKOUT SPLITS ─────────────────────────────────────
+const BASIC_SPLITS=[
+  {name:"Fat Loss Split",goal:"lose",days:"4 days/week",desc:"High rep, circuit-style to maximize calorie burn",exercises:["Squat","Bench Press","Bent-Over Row","Lunge","Plank","Walk"]},
+  {name:"Muscle Building",goal:"gain",days:"5 days/week",desc:"Heavy compounds with progressive overload",exercises:["Squat","Deadlift","Bench Press","Pull-Ups","Shoulder Press","Bicep Curl"]},
+  {name:"Recomposition",goal:"recomp",days:"4 days/week",desc:"Balanced — fat loss + muscle gain",exercises:["Squat","Bench Press","Bent-Over Row","Romanian Deadlift","Plank","Walk"]},
+];
+const D7=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const F7=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const FULL_SPLITS={
+  lose:{3:[{focus:"Legs",emoji:"🦵",exercises:["Squat","Leg Press","Romanian Deadlift","Lunge","Calf Raises","Walk"]},{focus:"Chest+Triceps",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Tricep Pushdown","Calf Raises","Plank","Walk"]},{focus:"Back+Biceps",emoji:"💪",exercises:["Lat Pulldown","Bent-Over Row","Deadlift","Bicep Curl","Plank","Walk"]}],4:[{focus:"Legs+Cardio",emoji:"🦵",exercises:["Squat","Leg Press","Romanian Deadlift","Lunge","Calf Raises","Walk"]},{focus:"Chest+Triceps",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Tricep Pushdown","Calf Raises","Walk","Plank"]},{focus:"Back+Biceps",emoji:"💪",exercises:["Lat Pulldown","Bent-Over Row","Deadlift","Bicep Curl","Plank","Walk"]},{focus:"Delts+Cardio",emoji:"⚡",exercises:["Lateral Raises","Shoulder Press","Face Pulls","Calf Raises","Plank","Walk"]}],5:[{focus:"Legs Full",emoji:"🦵",exercises:["Squat","Leg Press","Romanian Deadlift","Lunge","Hip Thrust","Calf Raises"]},{focus:"Back",emoji:"💪",exercises:["Lat Pulldown","Bent-Over Row","Deadlift","Face Pulls","Plank","Calf Raises"]},{focus:"Chest",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Tricep Pushdown","Plank","Walk","Walk"]},{focus:"Delts",emoji:"⚡",exercises:["Lateral Raises","Shoulder Press","Face Pulls","Plank","Calf Raises","Walk"]},{focus:"Arms",emoji:"💥",exercises:["Tricep Pushdown","Bicep Curl","Lateral Raises","Plank","Walk","Walk"]}],6:[{focus:"Push (Chest+Tri)",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Tricep Pushdown","Lateral Raises","Walk"]},{focus:"Pull (Back+Bi)",emoji:"💪",exercises:["Lat Pulldown","Bent-Over Row","Face Pulls","Bicep Curl","Hammer Curl","Walk"]},{focus:"Legs",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Lunge","Calf Raises","Plank","Walk"]},{focus:"Push (Volume)",emoji:"🏋️",exercises:["Incline DB Press","Bench Press","Lateral Raises","Tricep Pushdown","Plank","Walk"]},{focus:"Pull (Volume)",emoji:"💪",exercises:["Bent-Over Row","Lat Pulldown","Face Pulls","Bicep Curl","Plank","Walk"]},{focus:"Cardio/Active",emoji:"🏃",exercises:["Walk","Plank","Lunge","Calf Raises","Walk","Walk"]}],7:[{focus:"Push (Chest+Tri)",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Tricep Pushdown","Lateral Raises","Walk"]},{focus:"Pull (Back+Bi)",emoji:"💪",exercises:["Lat Pulldown","Bent-Over Row","Face Pulls","Bicep Curl","Hammer Curl","Walk"]},{focus:"Legs",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Lunge","Calf Raises","Plank","Walk"]},{focus:"Cardio Focus",emoji:"🏃",exercises:["Walk","Walk","Plank","Lunge","Calf Raises","Walk"]},{focus:"Push (Volume)",emoji:"🏋️",exercises:["Incline DB Press","Bench Press","Lateral Raises","Tricep Pushdown","Plank","Walk"]},{focus:"Pull (Volume)",emoji:"💪",exercises:["Bent-Over Row","Lat Pulldown","Face Pulls","Bicep Curl","Plank","Walk"]},{focus:"Legs/Core",emoji:"🦵",exercises:["Hip Thrust","Lunge","Romanian Deadlift","Plank","Calf Raises","Walk"]}]},
+  gain:{3:[{focus:"Legs+Core",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Leg Press","Lunge","Calf Raises","Plank"]},{focus:"Chest+Shoulders",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Lateral Raises","Tricep Pushdown","Walk"]},{focus:"Back+Arms",emoji:"💪",exercises:["Deadlift","Pull-Ups","Bent-Over Row","Lat Pulldown","Bicep Curl","Lateral Raises"]}],4:[{focus:"Legs",emoji:"🦵",exercises:["Squat","Leg Press","Romanian Deadlift","Lunge","Calf Raises","Plank"]},{focus:"Chest+Delts",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Lateral Raises","Tricep Pushdown","Walk"]},{focus:"Back+Biceps",emoji:"💪",exercises:["Deadlift","Pull-Ups","Bent-Over Row","Lat Pulldown","Bicep Curl","Walk"]},{focus:"Arms",emoji:"💥",exercises:["Tricep Pushdown","Bicep Curl","Lateral Raises","Plank","Walk","Walk"]}],5:[{focus:"Quads+Calves",emoji:"🦵",exercises:["Squat","Leg Press","Lunge","Calf Raises","Plank","Walk"]},{focus:"Chest+Delts",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Lateral Raises","Plank","Walk"]},{focus:"Back",emoji:"💪",exercises:["Lat Pulldown","Bent-Over Row","Deadlift","Face Pulls","Plank","Calf Raises"]},{focus:"Arms+Abs",emoji:"💥",exercises:["Tricep Pushdown","Bicep Curl","Lateral Raises","Plank","Walk","Walk"]},{focus:"Full Body",emoji:"🔥",exercises:["Squat","Bench Press","Bent-Over Row","Hip Thrust","Plank","Walk"]}],6:[{focus:"Push (Heavy)",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Tricep Pushdown","Lateral Raises","Dips"]},{focus:"Pull (Heavy)",emoji:"💪",exercises:["Deadlift","Pull-Ups","Bent-Over Row","Bicep Curl","Hammer Curl","Face Pulls"]},{focus:"Legs (Heavy)",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Leg Press","Lunge","Calf Raises","Plank"]},{focus:"Push (Volume)",emoji:"🏋️",exercises:["Incline DB Press","Shoulder Press","Lateral Raises","Tricep Pushdown","Pec Deck","Dips"]},{focus:"Pull (Volume)",emoji:"💪",exercises:["Bent-Over Row","Lat Pulldown","Cable Row","Bicep Curl","Hammer Curl","Face Pulls"]},{focus:"Legs (Volume)",emoji:"🦵",exercises:["Hack Squat","Leg Press","Hip Thrust","Lunge","Leg Curl","Calf Raises"]}],7:[{focus:"Push (Heavy)",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Tricep Pushdown","Lateral Raises","Dips"]},{focus:"Pull (Heavy)",emoji:"💪",exercises:["Deadlift","Pull-Ups","Bent-Over Row","Bicep Curl","Hammer Curl","Face Pulls"]},{focus:"Legs (Heavy)",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Leg Press","Lunge","Calf Raises","Plank"]},{focus:"Push (Volume)",emoji:"🏋️",exercises:["Incline DB Press","Shoulder Press","Lateral Raises","Tricep Pushdown","Pec Deck","Dips"]},{focus:"Pull (Volume)",emoji:"💪",exercises:["Bent-Over Row","Lat Pulldown","Cable Row","Bicep Curl","Hammer Curl","Face Pulls"]},{focus:"Legs (Volume)",emoji:"🦵",exercises:["Hack Squat","Leg Press","Hip Thrust","Lunge","Leg Curl","Calf Raises"]},{focus:"Arms+Abs",emoji:"💥",exercises:["Bicep Curl","Tricep Pushdown","Hammer Curl","Lateral Raises","Plank","Walk"]}]},
+  recomp:{3:[{focus:"Upper Body",emoji:"💪",exercises:["Bench Press","Bent-Over Row","Shoulder Press","Bicep Curl","Tricep Pushdown","Plank"]},{focus:"Lower Body",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Lunge","Hip Thrust","Calf Raises","Walk"]},{focus:"Full Body",emoji:"🔥",exercises:["Deadlift","Lat Pulldown","Bench Press","Squat","Plank","Walk"]}],4:[{focus:"Legs+Core",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Leg Press","Lunge","Calf Raises","Plank"]},{focus:"Chest+Shoulders",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Lateral Raises","Tricep Pushdown","Walk"]},{focus:"Back+Arms",emoji:"💪",exercises:["Deadlift","Lat Pulldown","Bent-Over Row","Bicep Curl","Face Pulls","Walk"]},{focus:"Full Body",emoji:"🔥",exercises:["Squat","Bench Press","Bent-Over Row","Hip Thrust","Plank","Walk"]}],5:[{focus:"Legs Full",emoji:"🦵",exercises:["Squat","Leg Press","Romanian Deadlift","Lunge","Hip Thrust","Calf Raises"]},{focus:"Chest+Triceps",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Tricep Pushdown","Plank","Walk","Walk"]},{focus:"Back+Biceps",emoji:"💪",exercises:["Deadlift","Lat Pulldown","Bent-Over Row","Bicep Curl","Face Pulls","Walk"]},{focus:"Shoulders+Core",emoji:"⚡",exercises:["Lateral Raises","Shoulder Press","Face Pulls","Plank","Calf Raises","Walk"]},{focus:"Full Body",emoji:"🔥",exercises:["Squat","Lunge","Bent-Over Row","Hip Thrust","Plank","Walk"]}],6:[{focus:"Push",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Tricep Pushdown","Lateral Raises","Walk"]},{focus:"Pull",emoji:"💪",exercises:["Deadlift","Lat Pulldown","Bent-Over Row","Bicep Curl","Face Pulls","Walk"]},{focus:"Legs",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Lunge","Hip Thrust","Calf Raises","Plank"]},{focus:"Upper Body",emoji:"💪",exercises:["Incline DB Press","Bent-Over Row","Shoulder Press","Bicep Curl","Tricep Pushdown","Plank"]},{focus:"Lower+Cardio",emoji:"🦵",exercises:["Squat","Lunge","Calf Raises","Walk","Walk","Plank"]},{focus:"Full Body",emoji:"🔥",exercises:["Deadlift","Bench Press","Squat","Bent-Over Row","Plank","Walk"]}],7:[{focus:"Push",emoji:"🏋️",exercises:["Bench Press","Incline DB Press","Shoulder Press","Tricep Pushdown","Lateral Raises","Walk"]},{focus:"Pull",emoji:"💪",exercises:["Deadlift","Lat Pulldown","Bent-Over Row","Bicep Curl","Face Pulls","Walk"]},{focus:"Legs",emoji:"🦵",exercises:["Squat","Romanian Deadlift","Lunge","Hip Thrust","Calf Raises","Plank"]},{focus:"Active Recovery",emoji:"🧘",exercises:["Walk","Plank","Walk","Calf Raises","Walk","Walk"]},{focus:"Upper Body",emoji:"💪",exercises:["Incline DB Press","Bent-Over Row","Shoulder Press","Bicep Curl","Tricep Pushdown","Plank"]},{focus:"Lower Body",emoji:"🦵",exercises:["Squat","Lunge","Hip Thrust","Romanian Deadlift","Calf Raises","Plank"]},{focus:"Full Body",emoji:"🔥",exercises:["Deadlift","Bench Press","Squat","Bent-Over Row","Plank","Walk"]}]},
+};
+const MUSCLE_GROUPS=[{key:"chest",label:"Chest",emoji:"🫁",color:C.coral,exercises:["Bench Press","Incline DB Press","Dips"]},{key:"back",label:"Back",emoji:"🔙",color:C.cyan,exercises:["Deadlift","Pull-Ups","Bent-Over Row","Lat Pulldown"]},{key:"shoulders",label:"Shoulders",emoji:"⚡",color:C.amber,exercises:["Shoulder Press","Lateral Raises","Face Pulls"]},{key:"biceps",label:"Biceps",emoji:"💪",color:C.lime,exercises:["Bicep Curl","Hammer Curl"]},{key:"triceps",label:"Triceps",emoji:"🔱",color:C.purple,exercises:["Tricep Pushdown","Dips"]},{key:"quads",label:"Quads",emoji:"🦵",color:C.green,exercises:["Squat","Leg Press","Lunge"]},{key:"hamstrings",label:"Hamstrings",emoji:"🦵",color:C.teal,exercises:["Romanian Deadlift","Leg Curl"]},{key:"glutes",label:"Glutes",emoji:"🍑",color:C.orange,exercises:["Hip Thrust","Lunge"]},{key:"core",label:"Core",emoji:"🧘",color:C.coral,exercises:["Plank"]}];
+
+function buildWeek(days,goal){const gk=goal==="gain"?"gain":goal==="lose"?"lose":"recomp";const c=Math.max(3,Math.min(7,days));const splits=FULL_SPLITS[gk][c]||FULL_SPLITS[gk][4];return D7.map((day,i)=>{const si=i<splits.length?splits[i]:null;if(!si)return{day,full:F7[i],type:"rest",focus:"Rest & Recovery",emoji:"😴",exercises:[]};return{day,full:F7[i],type:"workout",focus:si.focus,emoji:si.emoji,exercises:si.exercises};});}
+
+// ─── WORKOUT CALENDAR ────────────────────────────────────
+function WorkoutCalendar({tracker}){
+  const[date,setDate]=useState(new Date());
+  const year=date.getFullYear(),month=date.getMonth();
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const today=new Date();
+  function workedOut(d){const ds=new Date(year,month,d).toLocaleDateString();return tracker[ds]&&Object.keys(tracker[ds]).length>0;}
+  function isToday(d){return d===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();}
+  function isFuture(d){const cd=new Date(year,month,d);return cd>today;}
+  const cells=[];
+  for(let i=0;i<firstDay;i++)cells.push(null);
+  for(let d=1;d<=daysInMonth;d++)cells.push(d);
+  const totalDays=Object.keys(tracker).filter(k=>{const dt=new Date(k);return dt.getMonth()===month&&dt.getFullYear()===year;}).length;
+  return(<Card glow={C.purple} ch={<div>
+    <Sec ch="Workout Calendar" color={C.purple}/>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <button className="tap" onClick={()=>setDate(new Date(year,month-1,1))} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",color:C.sub,fontFamily:FH,fontSize:14,cursor:"pointer"}}>‹</button>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontFamily:FH,fontSize:18,color:C.purple,letterSpacing:".06em"}}>{monthNames[month]} {year}</div>
+        <div style={{fontFamily:FB,fontSize:11,color:C.sub,marginTop:2}}>{totalDays} workout{totalDays!==1?"s":""} this month</div>
+      </div>
+      <button className="tap" onClick={()=>setDate(new Date(year,month+1,1))} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",color:C.sub,fontFamily:FH,fontSize:14,cursor:"pointer"}}>›</button>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:6}}>
+      {["S","M","T","W","T","F","S"].map((d,i)=>(<div key={i} style={{textAlign:"center",fontFamily:FH,fontSize:10,color:C.sub,letterSpacing:".1em",padding:"4px 0"}}>{d}</div>))}
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+      {cells.map((d,i)=>{if(!d)return(<div key={i}/>);const w=workedOut(d),t=isToday(d),fut=isFuture(d);return(<div key={i} style={{aspectRatio:"1",borderRadius:8,background:w?C.lime+"33":t?C.cyan+"22":C.card2,border:`1.5px solid ${w?C.lime:t?C.cyan:fut?"transparent":C.border}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",opacity:fut?.4:1}}>
+        <div style={{fontFamily:FH,fontSize:14,color:w?C.lime:t?C.cyan:C.text}}>{d}</div>
+        {w&&<div style={{fontSize:10}}>💪</div>}
+      </div>);})}
+    </div>
+    <div style={{display:"flex",gap:14,justifyContent:"center",marginTop:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:12,height:12,borderRadius:3,background:C.lime+"33",border:`1.5px solid ${C.lime}`}}/><span style={{fontFamily:FB,fontSize:10,color:C.sub}}>Worked Out</span></div>
+      <div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:12,height:12,borderRadius:3,background:C.cyan+"22",border:`1.5px solid ${C.cyan}`}}/><span style={{fontFamily:FB,fontSize:10,color:C.sub}}>Today</span></div>
+    </div>
+  </div>}/>);
+}
+
+// ─── WORKOUT TAB ──────────────────────────────────────────
+function WorkoutTab({tier,results,onUpgrade,tracker,setTracker}){
+  const[selEx,setSelEx]=useState(null);
+  const[showTimer,setShowTimer]=useState(false);
+  const[logF,setLogF]=useState({sets:"3",reps:"10",weight:""});
+  const[days,setDays]=useState(4);
+  const[selMuscles,setSelMuscles]=useState([]);
+  const todayStr=new Date().toLocaleDateString();
+  const goal=results?.goal||"recomp";
+  const gCol={gain:C.cyan,lose:C.coral,recomp:C.lime}[goal];
+  const freeSplit=BASIC_SPLITS.find(s=>s.goal===goal)||BASIC_SPLITS[2];
+  const week=buildWeek(days,goal);
+  const todayIdx=new Date().getDay()===0?6:new Date().getDay()-1;
+  const todayDay=D7[todayIdx];
+  function logSet(name){const dl=tracker[todayStr]||{},el=dl[name]||[];setTracker({...tracker,[todayStr]:{...dl,[name]:[...el,{sets:logF.sets,reps:logF.reps,weight:logF.weight,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]}});setLogF({sets:"3",reps:"10",weight:""});}
+  const getLog=n=>((tracker[todayStr]||{})[n])||[];
+  const customExs=MUSCLE_GROUPS.filter(mg=>selMuscles.includes(mg.key)).flatMap(mg=>mg.exercises).filter((ex,i,arr)=>arr.indexOf(ex)===i);
+
+  if(selEx){return(<div>
+    <BackBtn onClick={()=>{setSelEx(null);setShowTimer(false);}}/>
+    <Card glow={gCol} ch={<div style={{background:C.card2,borderRadius:14,padding:"18px",textAlign:"center",border:`1px solid ${gCol}33`}}>
+      <div style={{fontFamily:FH,fontSize:28,color:gCol,letterSpacing:".06em",marginBottom:6}}>{selEx}</div>
+      <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginBottom:8}}>{EX_SETS[selEx]||"3×10"}</div>
+      {(REST_SEC[selEx]||0)>0&&<div style={{fontFamily:FB,fontSize:11,color:C.cyan}}>Rest: {(REST_SEC[selEx]||90)>=60?`${(REST_SEC[selEx]||90)/60} min`:`${REST_SEC[selEx]}s`}</div>}
+    </div>}/>
+    {(REST_SEC[selEx]||0)>0&&(tier==="pro"?(!showTimer?<button className="tap" onClick={()=>setShowTimer(true)} style={{width:"100%",padding:"12px",borderRadius:12,border:`1.5px solid ${C.cyan}44`,background:C.cyan+"18",color:C.cyan,fontFamily:FH,fontSize:15,letterSpacing:".08em",cursor:"pointer",marginBottom:10}}>⏱ START REST TIMER</button>:<RestTimer exName={selEx} onClose={()=>setShowTimer(false)}/>):(<LockedFeature tierRequired="pro" onUpgrade={()=>onUpgrade("pro")}><div style={{padding:14,background:C.card2,borderRadius:12,marginBottom:12,textAlign:"center"}}><div style={{fontFamily:FH,fontSize:14,color:C.cyan,marginBottom:4}}>⏱ REST TIMER</div><div style={{fontFamily:FB,fontSize:11,color:C.sub}}>Smart rest periods per exercise</div></div></LockedFeature>))}
+    <Card ch={<div>
+      <Sec ch="Log This Set" color={C.cyan}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+        <Inp label="Sets" type="number" value={logF.sets} onChange={e=>setLogF({...logF,sets:e.target.value})}/>
+        <Inp label="Reps" type="number" value={logF.reps} onChange={e=>setLogF({...logF,reps:e.target.value})}/>
+        <Inp label="Weight (lbs)" type="number" placeholder="0" value={logF.weight} onChange={e=>setLogF({...logF,weight:e.target.value})}/>
+      </div>
+      <button className="tap" onClick={()=>logSet(selEx)} style={{width:"100%",padding:"13px",borderRadius:13,border:"none",background:`linear-gradient(135deg,${C.cyan},${C.cyan}CC)`,color:C.bg,fontFamily:FH,fontSize:16,letterSpacing:".1em",cursor:"pointer"}}>+ LOG THIS SET</button>
+      {getLog(selEx).length>0&&<div style={{marginTop:12}}>
+        <div style={{fontFamily:FH,fontSize:12,color:C.cyan,letterSpacing:".15em",marginBottom:8}}>{getLog(selEx).length} SETS LOGGED TODAY</div>
+        {getLog(selEx).map((l,i)=>(<div key={i} style={{display:"flex",gap:7,padding:"6px 0",borderBottom:`1px solid ${C.border}`,alignItems:"center"}}><Tag ch={`${l.sets}×${l.reps}`} color={C.lime}/>{l.weight&&<Tag ch={`${l.weight}lbs`} color={C.amber}/>}<span style={{fontFamily:FB,fontSize:10,color:C.sub,marginLeft:"auto"}}>{l.time}</span></div>))}
+      </div>}
+    </div>}/>
+  </div>);}
+
+  const ExChip=({ex})=>(<div className="tap" onClick={()=>setSelEx(ex)} style={{fontFamily:FB,fontSize:11,fontWeight:700,background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 12px",color:C.text,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>{ex}<span style={{color:C.sub,fontSize:10}}>{EX_SETS[ex]||"3×10"}</span>{getLog(ex).length>0&&<span style={{background:C.lime+"33",color:C.lime,borderRadius:4,padding:"1px 5px",fontSize:9,fontWeight:800}}>✓{getLog(ex).length}</span>}</div>);
+
+  return(<div>
+    <WorkoutCalendar tracker={tracker}/>
+    {tier==="free"&&<div>
+      <div style={{background:C.amber+"18",border:`1px solid ${C.amber}33`,borderRadius:12,padding:"10px 14px",marginBottom:12}}><div style={{fontFamily:FB,fontSize:12,color:C.amber,fontWeight:700}}>🆓 Free — Basic Split</div><div style={{fontFamily:FB,fontSize:11,color:C.sub,marginTop:2}}>Upgrade for full weekly plan, custom days, muscle targeting.</div></div>
+      <Card glow={gCol} ch={<div>
+        <Sec ch={freeSplit.name} color={gCol}/>
+        <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginBottom:10}}>{freeSplit.desc}</div>
+        <Tag ch={freeSplit.days} color={gCol}/>
+        <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:12}}>{freeSplit.exercises.map((ex,i)=>(<ExChip key={i} ex={ex}/>))}</div>
+      </div>}/>
+      <LockedFeature tierRequired="basic" onUpgrade={()=>onUpgrade("basic")}><Card ch={<div><Sec ch="Full Weekly Plan"/><div style={{fontFamily:FB,fontSize:12,color:C.sub}}>3, 4, or 5 days per week with Mon-Sun schedule.</div></div>}/></LockedFeature>
+      <LockedFeature tierRequired="pro" onUpgrade={()=>onUpgrade("pro")}><Card ch={<div><Sec ch="Muscle Group Selector"/><div style={{fontFamily:FB,fontSize:12,color:C.sub}}>Target specific muscles.</div></div>}/></LockedFeature>
+    </div>}
+
+    {tier==="basic"&&<div>
+      <Card glow={gCol} ch={<div>
+        <Sec ch="Training Days Per Week" color={gCol}/>
+        <div style={{display:"flex",gap:8,marginBottom:10}}>{[3,4,5,6,7].map(n=>(<div key={n} className="tap" onClick={()=>setDays(n)} style={{width:46,height:46,borderRadius:11,background:days===n?gCol:C.card2,border:`2px solid ${days===n?gCol:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FH,fontSize:20,color:days===n?C.bg:C.sub,cursor:"pointer"}}>{n}</div>))}</div>
+      </div>}/>
+      {week.map((session,i)=>{const isToday=session.day===todayDay,isRest=session.type==="rest";const col=isRest?C.sub:isToday?gCol:C.cyan;return(<div key={i} style={{background:isToday?gCol+"0F":C.card,border:`1.5px solid ${isToday?gCol:C.border}`,borderLeft:`4px solid ${col}`,borderRadius:14,padding:14,marginBottom:9}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:isRest?0:10}}>
+          <div><div style={{fontFamily:FB,fontSize:9,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".15em"}}>{session.full}</div><div style={{fontFamily:FH,fontSize:17,color:col,letterSpacing:".04em",marginTop:2}}>{session.emoji} {session.focus}</div></div>
+          <div style={{display:"flex",gap:5}}>{isToday&&<Tag ch="TODAY" color={gCol}/>}<Tag ch={isRest?"REST":"TRAIN"} color={isRest?C.sub:C.cyan}/></div>
+        </div>
+        {!isRest&&<div style={{display:"flex",flexWrap:"wrap",gap:6}}>{session.exercises.map((ex,j)=>(<ExChip key={j} ex={ex}/>))}</div>}
+      </div>);})}
+      <LockedFeature tierRequired="pro" onUpgrade={()=>onUpgrade("pro")}><Card ch={<div><Sec ch="Muscle Group Selector + Rest Timer"/><div style={{fontFamily:FB,fontSize:12,color:C.sub}}>Target muscles. Smart rest periods per exercise.</div></div>}/></LockedFeature>
+    </div>}
+
+    {tier==="pro"&&<div>
+      <Card glow={gCol} ch={<div>
+        <Sec ch="Training Days" color={gCol}/>
+        <div style={{display:"flex",gap:8,marginBottom:8}}>{[3,4,5,6,7].map(n=>(<div key={n} className="tap" onClick={()=>setDays(n)} style={{width:46,height:46,borderRadius:11,background:days===n?gCol:C.card2,border:`2px solid ${days===n?gCol:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FH,fontSize:20,color:days===n?C.bg:C.sub,cursor:"pointer"}}>{n}</div>))}</div>
+      </div>}/>
+      <Card ch={<div>
+        <Sec ch="Target Muscle Groups" color={gCol}/>
+        <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginBottom:12}}>Select muscles for custom workout, or leave empty for weekly plan.</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:selMuscles.length>0?12:0}}>{MUSCLE_GROUPS.map(mg=>(<div key={mg.key} className="tap" onClick={()=>setSelMuscles(p=>p.includes(mg.key)?p.filter(x=>x!==mg.key):[...p,mg.key])} style={{padding:"11px",borderRadius:11,border:`1.5px solid ${selMuscles.includes(mg.key)?mg.color:C.border}`,background:selMuscles.includes(mg.key)?mg.color+"22":C.card2,cursor:"pointer",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>{mg.emoji}</span><div><div style={{fontFamily:FB,fontSize:12,fontWeight:800,color:selMuscles.includes(mg.key)?mg.color:C.text}}>{mg.label}</div></div>{selMuscles.includes(mg.key)&&<div style={{marginLeft:"auto",color:mg.color,fontSize:14}}>✓</div>}</div>))}</div>
+        {selMuscles.length>0&&<div><div style={{fontFamily:FH,fontSize:13,color:gCol,letterSpacing:".1em",marginBottom:8}}>CUSTOM WORKOUT</div><div style={{display:"flex",flexWrap:"wrap",gap:7}}>{customExs.map((ex,i)=>(<ExChip key={i} ex={ex}/>))}</div></div>}
+      </div>}/>
+      {selMuscles.length===0&&week.map((session,i)=>{const isToday=session.day===todayDay,isRest=session.type==="rest";const col=isRest?C.sub:isToday?gCol:C.cyan;return(<div key={i} style={{background:isToday?gCol+"0F":C.card,border:`1.5px solid ${isToday?gCol:C.border}`,borderLeft:`4px solid ${col}`,borderRadius:14,padding:14,marginBottom:9}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:isRest?0:10}}>
+          <div><div style={{fontFamily:FB,fontSize:9,fontWeight:700,color:C.sub,textTransform:"uppercase",letterSpacing:".15em"}}>{session.full}</div><div style={{fontFamily:FH,fontSize:17,color:col,letterSpacing:".04em",marginTop:2}}>{session.emoji} {session.focus}</div></div>
+          <div style={{display:"flex",gap:5}}>{isToday&&<Tag ch="TODAY" color={gCol}/>}<Tag ch={isRest?"REST":"TRAIN"} color={isRest?C.sub:C.cyan}/></div>
+        </div>
+        {!isRest&&<div style={{display:"flex",flexWrap:"wrap",gap:6}}>{session.exercises.map((ex,j)=>(<ExChip key={j} ex={ex}/>))}</div>}
+      </div>);})}
+      {Object.keys(tracker).length>0&&<Card glow={C.purple} ch={<div><Sec ch="Workout History" color={C.purple}/>{Object.keys(tracker).sort().reverse().slice(0,5).map(date=>(<div key={date} style={{marginBottom:12}}><div style={{fontFamily:FH,fontSize:12,color:C.purple,letterSpacing:".1em",marginBottom:7}}>{date}</div>{Object.entries(tracker[date]).map(([exName,sets])=>(<div key={exName} style={{background:C.card2,borderRadius:9,padding:"9px 11px",marginBottom:5}}><div style={{fontFamily:FB,fontSize:12,fontWeight:700,color:C.text,marginBottom:4}}>{exName}</div><div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{sets.map((s,i)=>(<div key={i} style={{fontFamily:FB,fontSize:10,background:C.purple+"22",border:`1px solid ${C.purple}44`,borderRadius:5,padding:"2px 7px",color:C.purple}}>{s.sets}×{s.reps}{s.weight?` @ ${s.weight}lbs`:""}</div>))}</div></div>))}</div>))}</div>}/>}
+    </div>}
+  </div>);
+}
+
+// ─── QUICK FOODS ──────────────────────────────────────────
+const QUICK_FOODS=[{name:"Chicken Breast 6oz",cal:280,p:53,c:0,f:6},{name:"Ground Beef 93% 6oz",cal:320,p:39,c:0,f:18},{name:"Sirloin Steak 6oz",cal:310,p:39,c:0,f:17},{name:"Salmon 6oz",cal:310,p:30,c:0,f:19},{name:"Tuna Can 5oz",cal:130,p:29,c:0,f:1},{name:"Eggs × 2",cal:155,p:13,c:1,f:11},{name:"Egg Whites × 3",cal:52,p:11,c:1,f:0},{name:"Greek Yogurt 6oz",cal:100,p:17,c:6,f:1},{name:"Cottage Cheese ½ cup",cal:110,p:13,c:5,f:2},{name:"Protein Shake",cal:120,p:25,c:3,f:2},{name:"White Rice 1 cup",cal:205,p:4,c:45,f:0},{name:"Brown Rice 1 cup",cal:218,p:5,c:46,f:2},{name:"Oatmeal ½ cup dry",cal:150,p:5,c:27,f:3},{name:"Sweet Potato 1 medium",cal:103,p:2,c:24,f:0},{name:"Banana 1 medium",cal:105,p:1,c:27,f:0},{name:"Apple 1 medium",cal:95,p:0,c:25,f:0},{name:"Broccoli 1 cup",cal:55,p:4,c:11,f:1},{name:"Avocado ½",cal:160,p:2,c:9,f:15},{name:"Peanut Butter 2 tbsp",cal:190,p:8,c:6,f:16},{name:"Almonds 1 handful",cal:164,p:6,c:6,f:14},{name:"Whole Wheat Bread 2 slices",cal:138,p:5,c:25,f:2},{name:"Pasta 1 cup",cal:220,p:8,c:43,f:1},{name:"Pizza Slice",cal:285,p:12,c:36,f:10},{name:"Cheeseburger (FF)",cal:490,p:25,c:46,f:23},{name:"Protein Bar",cal:210,p:20,c:22,f:7},{name:"McDonald's Grilled Chicken",cal:380,p:37,c:44,f:6},{name:"Chipotle Chicken Bowl",cal:525,p:43,c:58,f:13},{name:"Chick-fil-A Grilled Nuggets 8ct",cal:140,p:25,c:3,f:4},{name:"Subway Turkey 6\"",cal:280,p:19,c:46,f:4},{name:"Starbucks Egg Bites x2",cal:310,p:19,c:9,f:20}];
+
+// ─── NUTRITION TAB ────────────────────────────────────────
+function NutritionTab({tier,results,onUpgrade,entries,setEntries}){
+  const[form,setForm]=useState({name:"",calories:"",protein:"",carbs:"",fat:""});
+  const[showQuick,setShowQuick]=useState(false);
+  const[search,setSearch]=useState("");
+  const totals=entries.reduce((a,e)=>({calories:a.calories+e.calories,protein:a.protein+e.protein,carbs:a.carbs+e.carbs,fat:a.fat+e.fat}),{calories:0,protein:0,carbs:0,fat:0});
+  const filtered=QUICK_FOODS.filter(f=>f.name.toLowerCase().includes(search.toLowerCase()));
+  function addEntry(){if(!form.name||!form.calories)return;setEntries([...entries,{id:Date.now(),name:form.name,calories:+form.calories||0,protein:+form.protein||0,carbs:+form.carbs||0,fat:+form.fat||0,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]);setForm({name:"",calories:"",protein:"",carbs:"",fat:""});}
+  function quickAdd(food){setEntries([...entries,{id:Date.now(),name:food.name,calories:food.cal,protein:food.p,carbs:food.c,fat:food.f,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]);setShowQuick(false);setSearch("");}
+  const gColor={lose:C.coral,gain:C.cyan,recomp:C.lime}[results?.goal||"recomp"];
+  return(<div>
+    <div style={{background:`linear-gradient(135deg,${gColor}22,${gColor}08)`,border:`1.5px solid ${gColor}44`,borderRadius:18,padding:20,marginBottom:12}}>
+      <div style={{fontFamily:FB,fontSize:10,fontWeight:700,color:gColor,textTransform:"uppercase",letterSpacing:".2em",marginBottom:2}}>Daily Calorie Target</div>
+      <div style={{fontFamily:FH,fontSize:60,color:gColor,lineHeight:1}}>{results?.calories||"—"}</div>
+      <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginTop:4}}>calories per day</div>
+    </div>
+    {(tier==="basic"||tier==="pro")&&results?.macros&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9,marginBottom:12}}><SB label="Protein" value={`${results.macros.protein}g`} color={C.cyan}/><SB label="Carbs" value={`${results.macros.carbs}g`} color={C.lime}/><SB label="Fat" value={`${results.macros.fat}g`} color={C.coral}/></div>}
+    {tier==="free"&&<LockedFeature tierRequired="basic" onUpgrade={()=>onUpgrade("basic")}><Card ch={<div><Sec ch="Macro Breakdown"/><div style={{fontFamily:FB,fontSize:12,color:C.sub}}>See your exact protein, carbs, and fat targets.</div></div>}/></LockedFeature>}
+    {tier==="pro"&&<div>
+      <Card glow={C.lime} ch={<div>
+        <Sec ch="Today's Progress"/>
+        <div style={{display:"flex",justifyContent:"space-around",marginBottom:14}}>{[["Cal",totals.calories,results?.calories,C.lime],["Prot",totals.protein,results?.macros?.protein,C.cyan],["Carbs",totals.carbs,results?.macros?.carbs,C.amber],["Fat",totals.fat,results?.macros?.fat,C.coral]].map(([l,v,t,col])=>{const pct=t?Math.min(100,Math.round(v/t*100)):0;return(<div key={l} style={{textAlign:"center"}}><div style={{position:"relative",display:"inline-block"}}><Ring pct={pct} color={col} size={62} stroke={5}/><div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{fontFamily:FH,fontSize:12,color:col}}>{pct}%</div></div></div><div style={{fontFamily:FB,fontSize:9,color:C.sub,marginTop:4,textTransform:"uppercase"}}>{l}</div><div style={{fontFamily:FB,fontSize:10,color:col,fontWeight:700}}>{v}/{t||"?"}</div></div>);})}</div>
+      </div>}/>
+      <Card ch={<div>
+        <Sec ch="Log a Meal"/>
+        <div style={{background:C.lime+"11",border:`1px solid ${C.lime}22`,borderRadius:10,padding:"10px 13px",marginBottom:12}}><div style={{fontFamily:FB,fontSize:11,color:C.lime,fontWeight:700,marginBottom:2}}>📱 No measuring needed!</div><div style={{fontFamily:FB,fontSize:11,color:C.sub}}>Tap Quick Add to pick from 30 common foods.</div></div>
+        <button className="tap" onClick={()=>setShowQuick(!showQuick)} style={{width:"100%",padding:"12px",borderRadius:12,border:`1.5px solid ${C.cyan}44`,background:C.cyan+"18",color:C.cyan,fontFamily:FH,fontSize:14,letterSpacing:".08em",cursor:"pointer",marginBottom:12}}>{showQuick?"✕ CLOSE QUICK ADD":"⚡ QUICK ADD — COMMON FOODS"}</button>
+        {showQuick&&<div style={{marginBottom:12}}>
+          <input placeholder="Search foods…" value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",background:C.card2,border:`1.5px solid ${C.border}`,borderRadius:10,padding:"10px 12px",color:C.text,fontSize:16,fontFamily:FB,outline:"none",marginBottom:8}}/>
+          <div style={{maxHeight:280,overflowY:"auto"}}>{filtered.map((food,i)=>(<div key={i} style={{background:C.card2,borderRadius:10,padding:"10px 12px",marginBottom:6}}>
+            <div style={{fontFamily:FB,fontSize:12,fontWeight:700,marginBottom:5}}>{food.name}</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:6}}><Tag ch={`${food.cal}kcal`} color={C.lime}/><Tag ch={`${food.p}g prot`} color={C.cyan}/></div>
+            <button className="tap" onClick={()=>quickAdd(food)} style={{width:"100%",padding:"7px",borderRadius:8,border:"none",background:`linear-gradient(135deg,${C.lime},${C.lime}CC)`,color:C.bg,fontFamily:FH,fontSize:12,cursor:"pointer"}}>+ ADD NOW</button>
+          </div>))}</div>
+        </div>}
+        <div style={{fontFamily:FB,fontSize:10,fontWeight:700,color:C.sub,textTransform:"uppercase",marginBottom:8}}>Or Enter Manually</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+          <div style={{gridColumn:"1/-1"}}><Inp label="Food Name" placeholder="e.g. Grilled chicken" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+          {["calories","protein","carbs","fat"].map(k=>(<Inp key={k} label={k+(k==="calories"?" (kcal)":" (g)")} type="number" placeholder="0" value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>))}
+        </div>
+        <button className="tap" onClick={addEntry} style={{width:"100%",padding:"13px",borderRadius:13,border:"none",background:`linear-gradient(135deg,${C.lime},${C.lime}CC)`,color:C.bg,fontFamily:FH,fontSize:16,letterSpacing:".1em",cursor:"pointer"}}>+ ADD TO LOG</button>
+      </div>}/>
+      {entries.length>0&&<Card ch={<div>
+        <Sec ch={`${entries.length} Item${entries.length===1?"":"s"} Today`}/>
+        {entries.map(e=>(<div key={e.id} style={{display:"flex",gap:7,alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap"}}><span style={{fontFamily:FB,fontSize:10,color:C.sub,minWidth:40}}>{e.time}</span><span style={{flex:1,fontFamily:FB,fontSize:12,fontWeight:700,minWidth:100}}>{e.name}</span><Tag ch={`${e.calories}kcal`} color={C.lime}/><Tag ch={`${e.protein}p`} color={C.cyan}/><button onClick={()=>setEntries(entries.filter(x=>x.id!==e.id))} style={{background:"none",border:"none",color:C.coral,cursor:"pointer",fontSize:18,padding:"0 4px"}}>×</button></div>))}
+      </div>}/>}
+    </div>}
+    {(tier==="free"||tier==="basic")&&<LockedFeature tierRequired="pro" onUpgrade={()=>onUpgrade("pro")}><Card ch={<div><Sec ch="Food Log + Progress Rings"/><div style={{fontFamily:FB,fontSize:12,color:C.sub}}>Track every meal. 30+ foods pre-loaded.</div></div>}/></LockedFeature>}
+  </div>);
+}
+
+// ─── MAIN APP ──────────────────────────────────────────────
+function App(){
+  const saved=loadState();
+  const[screen,setScreen]=useState(saved?.screen||"splash");
+  const[tier,setTier]=useState(saved?.tier||"free");
+  const[results,setResults]=useState(saved?.results||null);
+  const[tab,setTab]=useState(saved?.tab||"fastfood");
+  const[showPaywall,setShowPaywall]=useState(false);
+  const[tracker,setTracker]=useState(saved?.tracker||{});
+  const[entries,setEntries]=useState(saved?.entries||[]);
+  
+  // Auto-save state
+  useEffect(()=>{saveState({screen,tier,results,tab,tracker,entries});},[screen,tier,results,tab,tracker,entries]);
+
+  function openUpgrade(t){setShowPaywall(true);}
+  function handleTierSelect(t){setTier(t);setShowPaywall(false);if(screen==="splash")setScreen("onboard");}
+
+  const TABS=[{key:"fastfood",icon:"🚀",label:"Fast Food"},{key:"nutrition",icon:"🥗",label:"Nutrition"},{key:"workout",icon:"💪",label:"Train"},{key:"settings",icon:"⚙️",label:"Settings"}];
+
+  if(screen==="splash")return(<div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px"}}>
+    <div style={{textAlign:"center",marginBottom:40}}>
+      <div style={{fontFamily:FH,fontSize:52,color:C.lime,letterSpacing:".1em",lineHeight:1}}>⚡ FITCORE</div>
+      <div style={{fontFamily:FB,fontSize:14,color:C.sub,letterSpacing:".15em",textTransform:"uppercase",marginTop:8}}>Your Body · Your Plan · Your Story</div>
+    </div>
+    <div style={{width:"100%",maxWidth:400}}>
+      {Object.values(TIERS).map(t=>(<div key={t.id} className="tap" onClick={()=>{setTier(t.id);setScreen("onboard");}} style={{background:t.id==="pro"?`linear-gradient(135deg,${t.color}22,${t.color}08)`:C.card,border:`2px solid ${t.id==="pro"?t.color:C.border}`,borderRadius:16,padding:"18px 20px",marginBottom:10,cursor:"pointer",position:"relative"}}>
+        {t.id==="pro"&&<div style={{position:"absolute",top:-10,right:16,background:`linear-gradient(135deg,${C.gold},${C.amber})`,color:C.bg,fontFamily:FH,fontSize:10,letterSpacing:".1em",padding:"3px 10px",borderRadius:20}}>MOST POPULAR</div>}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontSize:28}}>{t.icon}</span>
+            <div><div style={{fontFamily:FH,fontSize:20,color:t.id==="pro"?t.color:C.text,letterSpacing:".06em"}}>{t.name}</div><div style={{fontFamily:FB,fontSize:11,color:C.sub,marginTop:2}}>{t.id==="free"?"Basic features — always free":t.id==="basic"?"Macros, meal plans, custom splits":"Everything — full customization"}</div></div>
+          </div>
+          <div style={{textAlign:"right"}}><div style={{fontFamily:FH,fontSize:22,color:t.id==="pro"?t.color:C.text}}>{t.price}</div><div style={{fontFamily:FB,fontSize:10,color:C.sub}}>{t.id==="free"?"forever":"/month"}</div></div>
+        </div>
+      </div>))}
+    </div>
+  </div>);
+
+  if(screen==="onboard")return(<Onboarding onDone={r=>{setResults(r);setScreen("app");}}/>);
+
+  return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:FB,color:C.text,paddingBottom:72}}>
+    {showPaywall&&<PaywallModal onSelect={handleTierSelect} onClose={()=>setShowPaywall(false)} currentTier={tier}/>}
+    <div style={{background:"linear-gradient(160deg,#141923,#0B0F19)",borderBottom:`1px solid ${C.border}`,padding:"14px 18px 11px",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(20px)"}}>
+      <div style={{maxWidth:640,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{fontFamily:FH,fontSize:24,color:C.lime,letterSpacing:".1em"}}>⚡ FITCORE</div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {results?.calories&&<div style={{textAlign:"right"}}><div style={{fontFamily:FH,fontSize:18,color:C.cyan}}>{results.calories}</div><div style={{fontFamily:FB,fontSize:8,color:C.sub,textTransform:"uppercase",letterSpacing:".1em"}}>kcal/day</div></div>}
+          <div className="tap" onClick={()=>openUpgrade()} style={{background:TIERS[tier].color+"22",border:`1px solid ${TIERS[tier].color}44`,borderRadius:8,padding:"5px 10px",cursor:"pointer"}}>
+            <div style={{fontFamily:FH,fontSize:12,color:TIERS[tier].color,letterSpacing:".06em"}}>{TIERS[tier].icon} {TIERS[tier].name.toUpperCase()}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style={{maxWidth:640,margin:"0 auto",padding:"16px 14px"}}>
+      {tab==="fastfood"&&<FastFoodTab tier={tier} onUpgrade={openUpgrade}/>}
+      {tab==="nutrition"&&<NutritionTab tier={tier} results={results} onUpgrade={openUpgrade} entries={entries} setEntries={setEntries}/>}
+      {tab==="workout"&&<WorkoutTab tier={tier} results={results} onUpgrade={openUpgrade} tracker={tracker} setTracker={setTracker}/>}
+      {tab==="settings"&&<div>
+        <Card glow={C.lime} ch={<div>
+          <Sec ch="Your Plan"/>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}><span style={{fontSize:32}}>{TIERS[tier].icon}</span><div><div style={{fontFamily:FH,fontSize:22,color:TIERS[tier].color,letterSpacing:".06em"}}>{TIERS[tier].name} Plan</div><div style={{fontFamily:FB,fontSize:12,color:C.sub}}>{TIERS[tier].price}{tier!=="free"?"/month":" forever"}</div></div></div>
+          <Btn ch="⬆ UPGRADE PLAN" color={C.lime} onClick={()=>openUpgrade()}/>
+        </div>}/>
+        <Card ch={<div>
+          <Sec ch="Your Stats"/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}><SB label="Daily Cal" value={results?.calories||"—"} color={C.lime}/><SB label="Goal" value={results?.goal==="lose"?"Fat Loss":results?.goal==="gain"?"Muscle Gain":"Recomp"} color={C.cyan}/></div>
+          <button className="tap" onClick={()=>setScreen("onboard")} style={{width:"100%",padding:"11px",borderRadius:11,border:`1px solid ${C.border}`,background:"transparent",color:C.sub,fontFamily:FH,fontSize:13,letterSpacing:".08em",cursor:"pointer",marginTop:10}}>↺ RECALCULATE</button>
+        </div>}/>
+        <Card ch={<div>
+          <Sec ch="Reset Data"/>
+          <div style={{fontFamily:FB,fontSize:12,color:C.sub,marginBottom:10}}>Clear everything and start over.</div>
+          <button className="tap" onClick={()=>{if(confirm("Clear all data?")){localStorage.removeItem(STORAGE_KEY);location.reload();}}} style={{width:"100%",padding:"11px",borderRadius:11,border:`1px solid ${C.coral}44`,background:C.coral+"18",color:C.coral,fontFamily:FH,fontSize:13,letterSpacing:".08em",cursor:"pointer"}}>🗑 RESET ALL DATA</button>
+        </div>}/>
+      </div>}
+    </div>
+    <div style={{position:"fixed",bottom:0,left:0,right:0,background:`${C.surface}EE`,backdropFilter:"blur(20px)",borderTop:`1px solid ${C.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+      {TABS.map(t=>(<button key={t.key} className="tap" onClick={()=>setTab(t.key)} style={{flex:1,padding:"9px 2px 11px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===t.key?C.lime:C.sub}}>
+        <div style={{fontSize:17,lineHeight:1}}>{t.icon}</div>
+        <div style={{fontFamily:FB,fontSize:8,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em"}}>{t.label}</div>
+        {tab===t.key&&<div style={{width:14,height:2,borderRadius:2,background:C.lime,marginTop:2}}/>}
+      </button>))}
+    </div>
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
